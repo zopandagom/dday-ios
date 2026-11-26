@@ -40,12 +40,16 @@ public enum KoreanLunarCalendar {
   }
 
   /// 그해 윤달이 붙는 달. 윤달이 없거나 표 범위 밖이면 `nil`.
+  /// 표의 사실(그해 윤달이 붙는 달)이다. 그 윤달을 고를 수 있는지(변환 범위 안인지)는 `solarDay(from:)` 로 확인한다.
+  /// 2050년은 윤3월이 있다.
   public static func leapMonth(in year: Int) -> Int? {
     guard let entry = self.entry(year: year), entry.leapMonth > 0 else { return nil }
     return entry.leapMonth
   }
 
   /// 음력 `year` 년 `month` 월(윤달이면 `isLeapMonth`)의 일수(29 또는 30). 그런 달이 없으면 `nil`.
+  /// 표의 사실(그 달의 일수)이다. 변환 범위 끝(음력 2050-11-18) 뒤의 날도 일수에 들어가므로
+  /// (2050년 11월 30, 12월 29) 고를 수 있는지는 `solarDay(from:)` 로 확인한다.
   public static func numberOfDays(year: Int, month: Int, isLeapMonth: Bool = false) -> Int? {
     guard let entry = self.entry(year: year) else { return nil }
     return self.months(of: entry).first { $0.month == month && $0.isLeap == isLeapMonth }?.days
