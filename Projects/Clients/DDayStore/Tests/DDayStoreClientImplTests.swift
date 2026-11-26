@@ -115,6 +115,25 @@ struct DDayStoreClientRuleTests {
     #expect(try await store.fetchAll() == [first])
   }
 
+  @Test("notFound·alreadyExists 로 실패한 호출은 시각을 쓰지 않는다", arguments: StoreKind.allCases)
+  func failedCallsDoNotConsumeClock(kind: StoreKind) async throws {
+    let clock = TestClock()
+    let fixedID = Sample.id(7)
+    let ids = IDSequence([fixedID, fixedID, Sample.id(8)])
+    let store = try kind.make(now: clock.next, makeID: ids.next)
+    let first = try await store.add(Sample.draft("첫 값"))
+
+    await #expect(throws: DDayStoreError.alreadyExists) {
+      _ = try await store.add(Sample.draft("같은 id"))
+    }
+    await #expect(throws: DDayStoreError.notFound) {
+      _ = try await store.update(id: Sample.id(99), Sample.draft("없음"))
+    }
+    let second = try await store.add(Sample.draft("둘째 값"))
+
+    #expect(second.createdAt == first.createdAt.addingTimeInterval(1))
+  }
+
   @Test("목록은 생성 시각 오름차순이다", arguments: StoreKind.allCases)
   func orderByCreatedAt(kind: StoreKind) async throws {
     let store = try kind.make(
@@ -207,6 +226,38 @@ struct DDayStoreClientFakeTests {
       _ = try await store.fetchAll()
     }
     #expect(try await store.fetchAll() == [existing])
+  }
+
+  @Test("주입한 saveFailed 는 Impl 처럼 시각을 정한 뒤 실패하고, 다른 에러는 시각을 쓰지 않는다")
+  func injectedErrorClock() async throws {
+    let clock = TestClock()
+    let store = DDayStoreClientFake(now: clock.next)
+    let first = try await store.add(Sample.draft("첫 값"))
+
+    store.failNextCall(with: .loadFailed)
+    await #expect(throws: DDayStoreError.loadFailed) {
+      _ = try await store.add(Sample.draft("읽기 실패"))
+    }
+    store.failNextCall(with: .saveFailed)
+    await #expect(throws: DDayStoreError.saveFailed) {
+      _ = try await store.update(id: first.id, Sample.draft("저장 실패"))
+    }
+    let second = try await store.add(Sample.draft("둘째 값"))
+
+    // 첫 값 +1, loadFailed 는 시각을 쓰지 않음, saveFailed 는 +1 을 씀 → 둘째 값은 +2
+    #expect(second.createdAt == first.createdAt.addingTimeInterval(2))
+    #expect(store.dDays == [first, second])
+  }
+
+  @Test("notFound 로 먼저 끝난 호출에 넣은 saveFailed 는 다음 호출로 넘어가지 않는다")
+  func injectedSaveFailedConsumedByNotFound() async throws {
+    let store = DDayStoreClientFake(now: TestClock().next)
+    store.failNextCall(with: .saveFailed)
+    await #expect(throws: DDayStoreError.notFound) {
+      try await store.delete(id: Sample.id(99))
+    }
+    _ = try await store.add(Sample.draft())
+    #expect(store.dDays.count == 1)
   }
 
   @Test("처음 넣은 디데이를 목록 순서대로 돌려준다")
