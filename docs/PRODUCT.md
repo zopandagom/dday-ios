@@ -30,7 +30,8 @@
 | 디자인 팔레트(라이트/다크): Blush Pink #FF8FB1(강조색·연인), Lavender #C9B6FF/#A996F0(기타), Peach #FFC6A8/#F0A989(생일), Mint #A8E6CF/#7FCFB2(가족), Butter #FFE8A3/#E8CF7E(당일 배지), 배경 #FFF8F6/#1E1A22, 카드 #FFFFFF/#2A2430, 글자 #4A3F4B/#F3ECF5 | 10~20대 여성 타깃의 파스텔·다꾸 감성 |
 | 폰트: 한글 Pretendard(OFL), D-day 숫자 SF Pro Rounded | |
 | 디자인 에셋(앱 아이콘·폴더 아이콘·일러스트·기본 배경)은 사용자가 ChatGPT 로 만든다 | |
-| "오늘" 기준: `CalendarDay(Date(), in: .autoupdatingCurrent)`(기기 현재 시간대의 날짜)를 App 이 클로저로 `HomeModel` 에 주입. 앱 복귀(scenePhase active)·자정(`.NSCalendarDayChanged`)·시간대 변경(`.NSSystemTimeZoneDidChange`) 때 다시 구해 바뀌었을 때만 다시 정렬한다 (저장소는 다시 읽지 않음) | 테스트에서 날짜를 고정하고, 자정·여행 중에도 카운트가 맞게 |
+| "오늘" 기준: `CalendarDay(Date(), in: .autoupdatingCurrent)`(기기 현재 시간대의 날짜)를 App 이 클로저로 `HomeModel` 에 주입. 앱 복귀(scenePhase active)·자정(`.NSCalendarDayChanged`)·시간대 변경(`.NSSystemTimeZoneDidChange`) 때 다시 구해 바뀌었을 때만 다시 정렬한다 (저장소는 다시 읽지 않음). App 은 같은 방식으로 구한 오늘을 편집 화면(`DDayEditorModel`)을 열 때 한 번 넘겨 추가 모드의 시작 날짜로 쓴다 (열린 동안 날짜가 바뀌어도 다시 구하지 않는다) | 테스트에서 날짜를 고정하고, 자정·여행 중에도 카운트가 맞게 |
+| 디데이 편집: 추가·수정을 한 화면(Feature `DDayEditor`)으로 하고 App 이 홈 위에 시트로 띄운다 (떠 있는 동안 다시 열지 않고, 늦게 끝난 옛 편집은 새로 연 시트를 닫지 않는다. 이 판단은 Feature 의 순수 값 `DDayEditorPresentation`). 홈과 같은 저장소를 쓰고, 결과는 콜백으로 받아 홈에 다시 읽지 않고 반영한다 (`HomeModel.dDaySaved(_:)`·`dDaySavedAsNew(_:replacing:)`·`dDayDeleted(id:)`. 불러오는 중에 온 결과는 불러온 목록에 적용하고, 불러오기 실패 중 저장되면 다시 불러온다). 양력은 `supportedSolarRange` 안에서만, 음력 선택지는 `KoreanLunarCalendar.solarDay(from:)` 가 nil 이 아닌 것만 고른다 (음력 2050-11-18까지). 연·월·윤달을 바꿔 고를 수 없게 된 값은 평달·그 달 마지막 선택 가능 일로 맞춘다 | 홈이 저장소를 다시 읽지 않아도 바로 보인다. 변환할 수 없는 음력은 처음부터 고를 수 없게 막는다 |
 
 ## 3. 프로젝트 규칙
 하네스 규칙(`docs/harness/`)에 더하는 이 앱의 규칙이다. 리뷰는 하네스 규칙과 같은 기준으로 본다 (CONVENTIONS §5 "리뷰 기준"). lint 로 막는 규칙은 "강제" 열에 `.swiftlint.yml` 의 규칙 이름을 적는다.
