@@ -86,7 +86,8 @@ public enum DDayCalculator {
     self.occurrences(of: schedule, onOrAfter: today, limit: 1).first
   }
 
-  /// 세는 방식(`CountingStyle`)에 따른 일수. 표시 형식(D-3, D+10, 100일)은 화면이 정한다.
+  /// 세는 방식(`CountingStyle`)에 따른 일수. 표시 형식(D-3, D+10, 11일째)은 화면이 정한다.
+  /// 목록의 그룹·카운트 분류는 `DDayStatus` 가 같은 규칙으로 만든다.
   /// - `.dDay`: 목표일 - 오늘. 매년 반복이면 목표일은 다음 날짜, 반복 없음이면 처음 날짜(지나면 음수).
   /// - `.dPlus`: 오늘 - 처음 날짜.
   /// - `.dayOne`: 오늘 - 처음 날짜 + 1.

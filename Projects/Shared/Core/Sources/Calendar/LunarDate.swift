@@ -13,6 +13,7 @@ public struct LunarDate: Hashable, Sendable, CustomStringConvertible {
     self.isLeapMonth = isLeapMonth
   }
 
+  /// 디버그·로그용 (한국어 고정). 화면 표시는 Feature 의 String Catalog 문구를 쓴다.
   public var description: String {
     "\(self.year)-\(self.month)-\(self.day)\(self.isLeapMonth ? " (윤)" : "")"
   }
