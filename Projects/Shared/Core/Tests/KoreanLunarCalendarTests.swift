@@ -97,6 +97,38 @@ struct KoreanLunarCalendarTests {
     }
   }
 
+  @Test("원본 패키지에서 따로 뽑은 음력 1900~2050년 모든 달의 1일과 같다")
+  func matchesOriginalMonthStarts() throws {
+    let years = koreanLunarMonthStarts
+    #expect(years.map(\.year) == Array(1900 ... 2050))
+    // 윤달 56개, 변환 범위 밖인 2050년 12월 제외
+    #expect(years.reduce(0) { $0 + $1.monthStartOffsets.count } == 151 * 12 + 56 - 1)
+    for entry in years {
+      let newYear = CalendarDay(unchecked: entry.newYear / 10000, entry.newYear / 100 % 100, entry.newYear % 100)
+      #expect(KoreanLunarCalendar.leapMonth(in: entry.year) == (entry.leapMonth == 0 ? nil : entry.leapMonth))
+      // 달 순서: 1~12월, 윤달은 같은 번호 평달 바로 뒤
+      var months: [(month: Int, isLeap: Bool)] = []
+      for month in 1 ... 12 {
+        months.append((month, false))
+        if month == entry.leapMonth {
+          months.append((month, true))
+        }
+      }
+      for (index, offset) in entry.monthStartOffsets.enumerated() {
+        let (month, isLeap) = months[index]
+        let lunar = LunarDate(year: entry.year, month: month, day: 1, isLeapMonth: isLeap)
+        let solar = try #require(newYear.adding(days: offset))
+        #expect(KoreanLunarCalendar.solarDay(from: lunar) == solar, "\(lunar)")
+        #expect(KoreanLunarCalendar.lunarDate(from: solar) == lunar, "\(solar)")
+        // 다음 달 1일까지의 간격 = 이 달의 일수 (큰달·작은달이 해 안에서 바뀌어도 잡는다)
+        if index + 1 < entry.monthStartOffsets.count {
+          let days = KoreanLunarCalendar.numberOfDays(year: entry.year, month: month, isLeapMonth: isLeap)
+          #expect(days == entry.monthStartOffsets[index + 1] - offset, "\(lunar)")
+        }
+      }
+    }
+  }
+
   @Test("표의 연도 간 설날 간격이 그해 달 일수의 합과 같다")
   func tableConsistency() {
     for (entry, next) in zip(KoreanLunarCalendar.table, KoreanLunarCalendar.table.dropFirst()) {
