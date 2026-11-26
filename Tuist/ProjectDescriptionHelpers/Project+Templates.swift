@@ -6,7 +6,12 @@ public enum Env {
   public static let destinations: Destinations = [.iPhone]
   public static let deploymentTargets: DeploymentTargets = .iOS("18.0")
   /// 앱 타깃(App·Example) Info.plist 에 공통으로 넣는 값.
-  static let appInfoPlist: [String: Plist.Value] = ["UILaunchScreen": [:]]
+  /// `CFBundleLocalizations`: 하위 리소스 번들(Feature 문구)의 언어가 메인 앱의 지원 언어를 따르므로 ko·en 을 선언한다.
+  /// 없으면 하위 번들 언어가 메인 앱 developmentRegion 하나로 고정된다.
+  static let appInfoPlist: [String: Plist.Value] = [
+    "UILaunchScreen": [:],
+    "CFBundleLocalizations": ["ko", "en"],
+  ]
   /// Apple Developer Program 팀 ID. 실기기 빌드는 Xcode 자동 서명으로 프로비저닝한다.
   /// 비어 있으면 시뮬레이터 빌드와 CI 만 된다. 실기기에서 돌리기 전에 채운다.
   static let developmentTeam = ""

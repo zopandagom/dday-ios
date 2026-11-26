@@ -17,13 +17,10 @@ enum StoreKind: String, CaseIterable, Sendable {
   ) throws -> any DDayStoreClient {
     switch self {
     case .impl:
-      try DDayStoreClientImpl(
-        container: DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true),
-        now: now,
-        makeID: makeID
-      )
+      let container = try DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true)
+      return DDayStoreClientImpl(openContainer: { container }, now: now, makeID: makeID)
     case .fake:
-      DDayStoreClientFake(now: now, makeID: makeID)
+      return DDayStoreClientFake(now: now, makeID: makeID)
     }
   }
 }
@@ -166,7 +163,7 @@ struct DDayStoreClientImplTests {
   @Test("읽지 못하는 행은 건너뛰고 나머지를 돌려주며, 그 행은 저장소에 남는다")
   func skipsUnreadableRows() async throws {
     let container = try DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true)
-    let store = DDayStoreClientImpl(container: container, now: TestClock().next)
+    let store = DDayStoreClientImpl(openContainer: { container }, now: TestClock().next)
     let readable = try await store.add(Sample.draft("정상"))
 
     let context = ModelContext(container)
@@ -183,7 +180,7 @@ struct DDayStoreClientImplTests {
   @Test("읽지 못하던 행도 수정하면 모든 필드가 바뀌어 다시 읽힌다")
   func updateRepairsUnreadableRow() async throws {
     let container = try DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true)
-    let store = DDayStoreClientImpl(container: container, now: TestClock().next)
+    let store = DDayStoreClientImpl(openContainer: { container }, now: TestClock().next)
 
     let context = ModelContext(container)
     var corrupted = DDayRecordMapping.fields(

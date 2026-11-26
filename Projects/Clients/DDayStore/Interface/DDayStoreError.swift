@@ -4,7 +4,7 @@ public enum DDayStoreError: Error, Equatable, Sendable {
   case notFound
   /// 같은 id 의 디데이가 이미 있다 (추가).
   case alreadyExists
-  /// 저장소를 열거나 읽지 못했다.
+  /// 저장소를 열거나 읽지 못했다. 다시 시도하면 성공할 수 있다.
   case loadFailed
   /// 저장하지 못했다 (디스크 부족 등). 이 호출의 변경은 하나도 남지 않는다.
   case saveFailed

@@ -7,6 +7,8 @@ let project = Project.app(
   ],
   dependencies: [
     .feature(.home),
+    .client(interface: .dDayStore),
+    .client(impl: .dDayStore),
     .shared(.core),
   ]
 )
