@@ -12,6 +12,7 @@ import SwiftData
 ///   수정은 성공을 돌려주지만 행은 삭제된 채로 남는다.
 /// - 취소는 확인하지 않는다. 시작한 작업은 끝까지 해서 반쯤 저장된 상태가 없다.
 /// - 로그에는 작업 이름·에러 타입 이름·건너뛴 행 수만 남긴다 (제목·날짜·id 는 남기지 않는다, PRODUCT §1).
+///   이 값들은 사용자 데이터가 아니므로 진단할 수 있게 `privacy: .public` 으로 남긴다.
 public final class DDayStoreClientImpl: DDayStoreClient {
   let container: ModelContainer
   let now: @Sendable () -> Date
@@ -191,6 +192,8 @@ public final class DDayStoreClientImpl: DDayStoreClient {
   }
 
   private static func logFailure(_ operation: String, _ error: any Error) {
-    self.logger.error("DDayStore \(operation) failed: \(String(describing: type(of: error)))")
+    self.logger.error(
+      "DDayStore \(operation, privacy: .public) failed: \(String(describing: type(of: error)), privacy: .public)"
+    )
   }
 }
