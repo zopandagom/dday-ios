@@ -1,0 +1,9 @@
+# ios-harness 로 만들 때의 버전과 입력. /ios-harness:update-harness 가 읽고 갱신한다. 직접 고치지 않는다.
+version=0.7.1
+name=DDay
+display_name=디데이
+bundle_id=com.zopandagom.dday
+team=
+platform=ios
+os_version=18.0
+allow_network=0
