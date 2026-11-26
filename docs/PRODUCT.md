@@ -22,8 +22,8 @@
 | 서버 없음 | 앱이 네트워크를 쓰지 않는다. 필요해지면 사전 합의 후 별도 Client 로 추가하고 lint `no_network` 를 조정한다 |
 | TCA 등 외부 아키텍처 라이브러리 | 사용하지 않음. 외부 의존성 0 을 유지하고, 추가하려면 사전 합의 |
 | 저장소: SwiftData (이미지는 압축본 1600px + 썸네일 400px, `.externalStorage`) | 기기 안 저장만 필요하고 외부 의존성 없이 쓸 수 있다 |
-| 알림: UserNotifications 로컬 알림. 가까운 순 최대 60개 예약 후 다시 계산 | iOS 예약 한도 64개 |
-| 음력: 한국천문연구원 기준 표(1900~2050, korean-lunar-calendar 의 MIT 데이터에서 추출, 라이선스 고지 포함) | Foundation `.chinese` 달력은 중국 기준이라 한국 날짜와 다른 해가 있다 (예: 2027 설날 한국 2/7, 중국 2/6) |
+| 알림: UserNotifications 로컬 알림. 가까운 순 최대 60개 예약 후 다시 계산. 무엇을 예약할지는 Core `NotificationPlanner`(순수 로직: 지난 알림·D+ 방식 제외, 매년 반복은 다음 날짜 2번까지)가 정한다 | iOS 예약 한도 64개 |
+| 음력: 한국천문연구원 기준 표(음력 1900~2050년, korean-lunar-calendar 0.3.1 의 MIT 데이터에서 추출, 라이선스 고지 포함: `Projects/Shared/Core/Sources/Calendar/KoreanLunarTable.swift`). 변환 범위는 원본이 검증한 양력 1900-01-31 ~ 2050-12-31(음력 2050-11-18까지)이고 밖이면 `nil`. 날짜 차이는 Core `CalendarDay` 의 율리우스 일(JDN)로 계산 | Foundation `.chinese` 달력은 중국 기준이라 한국 날짜와 다른 해가 있다 (예: 2027 설날 한국 2/7, 중국 2/6) |
 | 사진 선택: PhotosUI `PhotosPicker` | 사진 권한 없이 사용자가 고른 사진만 받는다 |
 | 다국어: String Catalog, 한국어·영어 | |
 | 최소 지원: iOS 18.0, iPhone 만 | 더 많은 기기 지원 |
