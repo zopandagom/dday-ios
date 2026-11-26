@@ -22,6 +22,8 @@ public struct Client: Hashable, Sendable {
 
 public extension Client {
   // 예: static let photoLibrary = Client("PhotoLibrary")
+  /// 디데이 저장소 (SwiftData).
+  static let dDayStore = Client("DDayStore")
 }
 
 /// 화면 단위 기능 모듈. Feature 끼리는 서로 의존하지 않는다.
