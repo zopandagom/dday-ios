@@ -116,7 +116,16 @@ struct DDayCalculatorTests {
     #expect(DDayCalculator.occurrences(of: lunar, onOrAfter: self.today, limit: .max).isEmpty)
     #expect(DDayCalculator.dayCount(of: lunar, today: self.today) == nil)
     let plan = NotificationPlanner.plan(
-      [ReminderSource(dDayID: UUID(), schedule: lunar, daysBefore: [0], time: .defaultReminderTime)],
+      [
+        ReminderSource(
+          dDayID: UUID(),
+          schedule: lunar,
+          daysBefore: [0],
+          time: .defaultReminderTime,
+          remindsEveryHundredDays: true,
+          remindsAnniversaries: true
+        ),
+      ],
       today: self.today,
       now: .defaultReminderTime
     )
