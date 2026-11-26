@@ -1,7 +1,9 @@
 import Core
 import DDayStoreInterface
 import Foundation
+import SwiftData
 import Synchronization
+@testable import DDayStoreImpl
 
 /// 테스트 값 만들기. 테스트라 강제 언래핑을 쓴다.
 enum Sample {
@@ -64,5 +66,35 @@ final class IDSequence: Sendable {
     self.remaining.withLock { ids in
       ids.isEmpty ? UUID() : ids.removeFirst()
     }
+  }
+}
+
+/// 열기 주입용 에러.
+struct TestOpenError: Error {}
+
+/// 저장소 열기를 흉내 낸다. 시도 수를 세고, 정한 횟수만큼 실패한 뒤에는 새 메모리 컨테이너를 연다.
+final class ContainerOpener: Sendable {
+  private let state: Mutex<(attempts: Int, failuresLeft: Int)>
+
+  init(failures: Int = 0) {
+    self.state = Mutex((attempts: 0, failuresLeft: failures))
+  }
+
+  /// 지금까지 열기를 시도한 횟수.
+  var attempts: Int {
+    self.state.withLock { $0.attempts }
+  }
+
+  func open() throws -> ModelContainer {
+    let shouldFail = self.state.withLock { state in
+      state.attempts += 1
+      guard state.failuresLeft > 0 else { return false }
+      state.failuresLeft -= 1
+      return true
+    }
+    if shouldFail {
+      throw TestOpenError()
+    }
+    return try DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true)
   }
 }
