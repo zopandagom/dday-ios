@@ -21,15 +21,16 @@
 |---|---|
 | 서버 없음 | 앱이 네트워크를 쓰지 않는다. 필요해지면 사전 합의 후 별도 Client 로 추가하고 lint `no_network` 를 조정한다 |
 | TCA 등 외부 아키텍처 라이브러리 | 사용하지 않음. 외부 의존성 0 을 유지하고, 추가하려면 사전 합의 |
-| 저장소: SwiftData (이미지는 압축본 1600px + 썸네일 400px, `.externalStorage`). Client `DDayStore` 가 감싼다. 스키마는 `VersionedSchema`(V1 부터) + `SchemaMigrationPlan` 으로 버전 관리 | 기기 안 저장만 필요하고 외부 의존성 없이 쓸 수 있다. 출시 뒤 저장 형식을 바꿔도 기존 데이터를 옮길 수 있다 |
+| 저장소: SwiftData (이미지는 압축본 1600px + 썸네일 400px, `.externalStorage`). Client `DDayStore` 가 감싼다. 스키마는 `VersionedSchema`(V1 부터) + `SchemaMigrationPlan` 으로 버전 관리. 저장소는 처음 쓰는 호출에서 연다. 열지 못하면 그 호출이 `.loadFailed` 를 던지고 실패를 기억하지 않아 다음 호출이 다시 연다 (앱에 열기 실패 화면은 없고 목록의 불러오기 오류·다시 시도로 보인다) | 기기 안 저장만 필요하고 외부 의존성 없이 쓸 수 있다. 출시 뒤 저장 형식을 바꿔도 기존 데이터를 옮길 수 있다. 첫 잠금 해제 전 실행처럼 일시적인 열기 실패에서 앱을 다시 켜지 않고 회복한다 |
 | 알림: UserNotifications 로컬 알림. 가까운 순 최대 60개 예약 후 다시 계산. 무엇을 예약할지는 Core `NotificationPlanner`(순수 로직: 지난 알림·D+ 방식 제외, 매년 반복은 다음 날짜 2번까지)가 정한다 | iOS 예약 한도 64개 |
 | 음력: 한국천문연구원 기준 표(음력 1900~2050년, korean-lunar-calendar 0.3.1 의 MIT 데이터에서 추출, 라이선스 고지 포함: `Projects/Shared/Core/Sources/Calendar/KoreanLunarTable.swift`). 변환 범위는 원본이 검증한 양력 1900-01-31 ~ 2050-12-31(음력 2050-11-18까지)이고 밖이면 `nil`. 날짜 차이는 Core `CalendarDay` 의 율리우스 일(JDN)로 계산 | Foundation `.chinese` 달력은 중국 기준이라 한국 날짜와 다른 해가 있다 (예: 2027 설날 한국 2/7, 중국 2/6) |
 | 사진 선택: PhotosUI `PhotosPicker` | 사진 권한 없이 사용자가 고른 사진만 받는다 |
-| 다국어: String Catalog, 한국어·영어 | |
+| 다국어: String Catalog, 한국어·영어. Feature 문구는 자기 `Sources/Localizable.xcstrings`(Tuist 가 `<Feature>_<Feature>.bundle` 과 `Bundle.module` 생성, 코드는 `.atURL(Bundle.module.bundleURL)`). 앱 Info.plist `CFBundleLocalizations` = ko·en (`Env.appInfoPlist`) | 없으면 하위 번들 언어가 메인 앱 developmentRegion 하나로 고정된다 (App 은 항상 한국어, Example 은 항상 영어) |
 | 최소 지원: iOS 18.0, iPhone 만 | 더 많은 기기 지원 |
 | 디자인 팔레트(라이트/다크): Blush Pink #FF8FB1(강조색·연인), Lavender #C9B6FF/#A996F0(기타), Peach #FFC6A8/#F0A989(생일), Mint #A8E6CF/#7FCFB2(가족), Butter #FFE8A3/#E8CF7E(당일 배지), 배경 #FFF8F6/#1E1A22, 카드 #FFFFFF/#2A2430, 글자 #4A3F4B/#F3ECF5 | 10~20대 여성 타깃의 파스텔·다꾸 감성 |
 | 폰트: 한글 Pretendard(OFL), D-day 숫자 SF Pro Rounded | |
 | 디자인 에셋(앱 아이콘·폴더 아이콘·일러스트·기본 배경)은 사용자가 ChatGPT 로 만든다 | |
+| "오늘" 기준: `CalendarDay(Date(), in: .autoupdatingCurrent)`(기기 현재 시간대의 날짜)를 App 이 클로저로 `HomeModel` 에 주입. 앱 복귀(scenePhase active)·자정(`.NSCalendarDayChanged`)·시간대 변경(`.NSSystemTimeZoneDidChange`) 때 다시 구해 바뀌었을 때만 다시 정렬한다 (저장소는 다시 읽지 않음) | 테스트에서 날짜를 고정하고, 자정·여행 중에도 카운트가 맞게 |
 
 ## 3. 프로젝트 규칙
 하네스 규칙(`docs/harness/`)에 더하는 이 앱의 규칙이다. 리뷰는 하네스 규칙과 같은 기준으로 본다 (CONVENTIONS §5 "리뷰 기준"). lint 로 막는 규칙은 "강제" 열에 `.swiftlint.yml` 의 규칙 이름을 적는다.
@@ -37,3 +38,4 @@
 | ✅ 해야 할 것 | ❌ 하지 말아야 할 것 | 강제 |
 |---|---|---|
 | 저장 형식(`@Model` 필드·저장 문자열)을 바꿀 때는 새 `VersionedSchema` 와 `SchemaMigrationPlan` 단계를 추가한다 | 출시된 스키마 버전(`DDaySchemaV1` 등)의 `@Model` 필드나 저장 문자열을 직접 고치기 | |
+| 앱 화면(Feature `Sources`·App) 문구는 그 Feature 의 String Catalog 에 ko·en 을 모두 넣는다 (Example 데모 앱의 시나리오 이름 같은 개발용 문구는 제외). 숫자는 문자열(`String(n)`)로 넘겨 자릿수 구분 없이 표시한다 | 앱 화면에 문자열 하드코딩, `LunarDate.description`·`CalendarDay.description` 으로 화면 표시 | |
