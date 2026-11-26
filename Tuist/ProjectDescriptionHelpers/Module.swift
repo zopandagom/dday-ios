@@ -30,6 +30,8 @@ public extension Client {
 /// 각 Feature 는 Feature / Tests / Example 세 타깃으로 나뉜다.
 public enum Feature: String, CaseIterable {
   case home = "Home"
+  /// 디데이 추가·수정 화면.
+  case dDayEditor = "DDayEditor"
 
   public var name: String { "\(self.rawValue)Feature" }
   public var tests: String { "\(self.name)Tests" }

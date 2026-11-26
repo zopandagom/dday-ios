@@ -139,4 +139,26 @@ struct KoreanLunarCalendarTests {
     }
     #expect(KoreanLunarCalendar.table.count == 151)
   }
+
+  @Test("음력 2050-11-18 은 양력 2050-12-31 이고 19일부터는 변환하지 않는다")
+  func conversionEndsAtLunar20501118() {
+    #expect(
+      KoreanLunarCalendar.solarDay(from: LunarDate(year: 2050, month: 11, day: 18))
+        == CalendarDay(unchecked: 2050, 12, 31)
+    )
+    #expect(KoreanLunarCalendar.solarDay(from: LunarDate(year: 2050, month: 11, day: 19)) == nil)
+    #expect(KoreanLunarCalendar.solarDay(from: LunarDate(year: 2050, month: 11, day: 30)) == nil)
+  }
+
+  @Test("표의 일수·윤달은 변환 범위 끝 뒤에도 표 그대로다: 2050년 11월 30일, 12월 29일, 윤3월")
+  func tableFactsBeyondConversionEnd() {
+    #expect(KoreanLunarCalendar.numberOfDays(year: 2050, month: 11) == 30)
+    #expect(KoreanLunarCalendar.numberOfDays(year: 2050, month: 12) == 29)
+    #expect(KoreanLunarCalendar.solarDay(from: LunarDate(year: 2050, month: 12, day: 1)) == nil)
+    #expect(KoreanLunarCalendar.leapMonth(in: 2050) == 3)
+    #expect(
+      KoreanLunarCalendar.solarDay(from: LunarDate(year: 2050, month: 3, day: 30, isLeapMonth: true))
+        == CalendarDay(unchecked: 2050, 5, 20)
+    )
+  }
 }

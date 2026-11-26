@@ -32,13 +32,36 @@ struct DDayRecordMappingTests {
     Self.dDay(Sample.draft(date: Sample.lunar(2026, 1, 30))),
     Self.dDay(Sample.draft(reminder: ReminderSettings(
       isEnabled: false,
-      daysBefore: [1, 3],
+      enabledDaysBefore: [2, 7],
       time: Sample.time(20, 30)
     ))),
-    Self.dDay(Sample.draft(reminder: ReminderSettings(isEnabled: true, daysBefore: [], time: Sample.time(9, 0)))),
-    Self.dDay(Sample.draft(reminder: ReminderSettings(daysBefore: [0], time: Sample.time(23, 59)))),
-    Self.dDay(Sample.draft(reminder: ReminderSettings(daysBefore: [0, 30], time: Sample.time(0, 0)))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(
+      isEnabled: true,
+      enabledDaysBefore: [],
+      time: Sample.time(9, 0)
+    ))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(enabledDaysBefore: [0], time: Sample.time(23, 59)))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(enabledDaysBefore: [0, 30], time: Sample.time(0, 0)))),
     Self.dDay(Sample.draft(reminder: .default)),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(enabledDaysBefore: [0, 2, 7, 30], time: Sample.time(9, 0)))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(enabledDaysBefore: [30], time: Sample.time(9, 0)))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(
+      isEnabled: false,
+      enabledDaysBefore: [],
+      time: Sample.time(9, 0)
+    ))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(
+      enabledDaysBefore: [0, 2, 7],
+      time: Sample.time(9, 0),
+      remindsEveryHundredDays: false
+    ))),
+    Self.dDay(Sample.draft(reminder: ReminderSettings(
+      isEnabled: false,
+      enabledDaysBefore: [0],
+      time: Sample.time(9, 0),
+      remindsEveryHundredDays: false,
+      remindsAnniversaries: false
+    ))),
     Self.dDay(Sample.draft(""), createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: -1)),
   ]
 
@@ -132,10 +155,61 @@ struct DDayRecordMappingTests {
     #expect(dDay?.schedule.date == Sample.lunar(year, month, day))
   }
 
-  @Test("며칠 전 목록의 음수·중복은 읽을 때 정규화된다")
-  func normalizesDaysBeforeOnRead() {
+  @Test("켜진 날짜는 reminderDaysBefore, 나머지 선택지는 reminderDisabledDaysBefore 에 오름차순으로 쓴다")
+  func storedReminderFields() {
+    let reminder = ReminderSettings(enabledDaysBefore: [30, 0], time: Sample.time(9, 0))
+    let fields = DDayRecordMapping.fields(of: Self.dDay(Sample.draft(reminder: reminder)))
+    #expect(fields.reminderDaysBefore == [0, 30])
+    #expect(fields.reminderDisabledDaysBefore == [2, 7])
+  }
+
+  @Test("기념일 토글은 reminderEveryHundredDays·reminderAnniversaries 에 그대로 쓴다")
+  func storedMilestoneFields() {
+    let reminder = ReminderSettings(
+      enabledDaysBefore: [0],
+      time: Sample.time(9, 0),
+      remindsEveryHundredDays: false,
+      remindsAnniversaries: true
+    )
+    let fields = DDayRecordMapping.fields(of: Self.dDay(Sample.draft(reminder: reminder)))
+    #expect(fields.reminderEveryHundredDays == false)
+    #expect(fields.reminderAnniversaries == true)
+    let defaults = DDayRecordMapping.fields(of: Self.dDay(Sample.draft(reminder: .default)))
+    #expect(defaults.reminderEveryHundredDays && defaults.reminderAnniversaries)
+  }
+
+  @Test("선택지 밖 값(음수·1·14·366)과 꺼진 필드는 읽을 때 버리고 켜진 필드의 선택지만 켠다")
+  func dropsUnknownDaysOnRead() {
     var fields = Self.validFields
-    fields.reminderDaysBefore = [7, -3, 0, 7, 2]
-    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.daysBefore == [0, 2, 7])
+    fields.reminderDaysBefore = [7, -3, 0, 7, 14, 366, 1]
+    fields.reminderDisabledDaysBefore = [3, 30]
+    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore == [0, 7])
+  }
+
+  @Test("켜진·꺼진 필드에 같은 날이 있으면 켜짐으로 읽는다")
+  func overlappingDaysReadAsEnabled() {
+    var fields = Self.validFields
+    fields.reminderDaysBefore = [2]
+    fields.reminderDisabledDaysBefore = [2, 7]
+    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore == [2])
+  }
+
+  @Test("꺼진 날짜 필드가 빈 행(main 의 행)은 기본값과 같게 읽고 30일 전은 꺼짐이다")
+  func legacyRowReadsThirtyDaysBeforeAsOff() {
+    var fields = Self.validFields
+    fields.reminderDaysBefore = [0, 2, 7]
+    fields.reminderDisabledDaysBefore = []
+    let reminder = DDayRecordMapping.dDay(from: fields)?.reminder
+    #expect(reminder?.enabledDaysBefore == ReminderSettings.default.enabledDaysBefore)
+    #expect(reminder?.enabledDaysBefore.contains(30) == false)
+    #expect(reminder?.scheduledDaysBefore == [0, 2, 7])
+  }
+
+  @Test("꺼진 필드에만 있는 날짜는 꺼짐으로 읽는다")
+  func disabledFieldAloneIsOff() {
+    var fields = Self.validFields
+    fields.reminderDaysBefore = []
+    fields.reminderDisabledDaysBefore = [0, 2, 7, 30]
+    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore.isEmpty == true)
   }
 }

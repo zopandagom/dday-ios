@@ -18,13 +18,17 @@ struct NotificationPlannerTests {
     repeatRule: RepeatRule = .none,
     style: CountingStyle = .dDay,
     daysBefore: [Int] = [7, 2, 0],
-    time: TimeOfDay = .defaultReminderTime
+    time: TimeOfDay = .defaultReminderTime,
+    hundred: Bool = false,
+    years: Bool = false
   ) -> ReminderSource {
     ReminderSource(
       dDayID: id,
       schedule: DDaySchedule(date: date, repeatRule: repeatRule, countingStyle: style),
       daysBefore: daysBefore,
-      time: time
+      time: time,
+      remindsEveryHundredDays: hundred,
+      remindsAnniversaries: years
     )
   }
 
@@ -41,6 +45,7 @@ struct NotificationPlannerTests {
     #expect(plan.map(\.daysBefore) == [7, 2, 0])
     #expect(plan.allSatisfy { $0.dDayID == self.idA && $0.time == self.nine })
     #expect(plan.allSatisfy { $0.eventDay == CalendarDay(unchecked: 2026, 12, 25) })
+    #expect(plan.allSatisfy { $0.milestone == nil })
   }
 
   @Test("지난 알림과 이미 시각이 지난 오늘 알림은 뺀다")
@@ -65,19 +70,59 @@ struct NotificationPlannerTests {
     #expect(plan.isEmpty)
   }
 
-  @Test("D+ 방식은 빼고, 시작일=1일 방식은 넣는다")
-  func countingStyles() throws {
-    let date = DDayDate.solar(CalendarDay(unchecked: 2020, 12, 25))
+  @Test("D+·1일째 방식은 시작일이 오늘 이후면 시작일에 알린다", arguments: [CountingStyle.dPlus, .dayOne])
+  func upcomingStartDayOfDPlusAndDayOne(style: CountingStyle) throws {
     let plan = try NotificationPlanner.plan(
-      [
-        self.source(self.idA, date, repeatRule: .yearly, style: .dPlus),
-        self.source(self.idB, date, repeatRule: .yearly, style: .dayOne),
-      ],
+      [self.source(self.idA, .solar(CalendarDay(unchecked: 2026, 12, 25)), style: style)],
       today: self.today,
       now: self.time(8)
     )
-    #expect(!plan.isEmpty)
-    #expect(plan.allSatisfy { $0.dDayID == self.idB })
+    #expect(plan.map(\.day) == [
+      CalendarDay(unchecked: 2026, 12, 18), CalendarDay(unchecked: 2026, 12, 23), CalendarDay(unchecked: 2026, 12, 25),
+    ])
+    #expect(plan.allSatisfy { $0.eventDay == CalendarDay(unchecked: 2026, 12, 25) && $0.milestone == nil })
+  }
+
+  @Test("D+·1일째 방식은 반복 규칙을 보지 않는다: 지난 시작일은 기념일로만 알린다")
+  func passedStartIgnoresRepeatRule() throws {
+    let date = DDayDate.solar(CalendarDay(unchecked: 2020, 12, 25))
+    let off = try NotificationPlanner.plan(
+      [self.source(self.idA, date, repeatRule: .yearly, style: .dayOne)],
+      today: self.today,
+      now: self.time(8)
+    )
+    #expect(off.isEmpty)
+    let anniversaries = try NotificationPlanner.plan(
+      [self.source(self.idA, date, repeatRule: .yearly, style: .dayOne, years: true)],
+      today: self.today,
+      now: self.time(8)
+    )
+    #expect(anniversaries.map(\.day) == [
+      CalendarDay(unchecked: 2026, 12, 18), CalendarDay(unchecked: 2026, 12, 23), CalendarDay(unchecked: 2026, 12, 25),
+      CalendarDay(unchecked: 2027, 12, 18), CalendarDay(unchecked: 2027, 12, 23), CalendarDay(unchecked: 2027, 12, 25),
+    ])
+    #expect(anniversaries.map(\.daysBefore) == [7, 2, 0, 7, 2, 0])
+    #expect(anniversaries.map(\.milestone) == [
+      .years(6), .years(6), .years(6), .years(7), .years(7), .years(7),
+    ])
+  }
+
+  @Test("D-day 방식은 기념일 토글을 켜도 결과가 같다")
+  func dDayStyleIgnoresMilestoneFlags() throws {
+    let date = DDayDate.solar(CalendarDay(unchecked: 2020, 12, 25))
+    let off = try NotificationPlanner.plan(
+      [self.source(self.idA, date, repeatRule: .yearly)],
+      today: self.today,
+      now: self.time(8)
+    )
+    let withFlags = try NotificationPlanner.plan(
+      [self.source(self.idA, date, repeatRule: .yearly, hundred: true, years: true)],
+      today: self.today,
+      now: self.time(8)
+    )
+    #expect(off.count == 6)
+    #expect(withFlags == off)
+    #expect(withFlags.allSatisfy { $0.milestone == nil })
   }
 
   @Test("매년 반복은 다음 날짜 2번까지")
@@ -140,6 +185,34 @@ struct NotificationPlannerTests {
     #expect(all.count == 240)
     #expect(Array(all.prefix(60)) == plan)
     #expect(zip(plan, plan.dropFirst()).allSatisfy { $0.day <= $1.day })
+  }
+
+  @Test("30일 전 알림은 정확히 30일 전에 온다 (기념일도 같다)")
+  func thirtyDaysBeforeIsExactlyThirtyDays() throws {
+    let plan = try NotificationPlanner.plan(
+      [self.source(self.idA, .solar(CalendarDay(unchecked: 2027, 3, 14)), daysBefore: [0, 2, 7, 30])],
+      today: self.today,
+      now: self.time(8)
+    )
+    #expect(plan.map(\.day) == [
+      CalendarDay(unchecked: 2027, 2, 12), CalendarDay(unchecked: 2027, 3, 7),
+      CalendarDay(unchecked: 2027, 3, 12), CalendarDay(unchecked: 2027, 3, 14),
+    ])
+    #expect(plan.map(\.daysBefore) == [30, 7, 2, 0])
+
+    let milestones = try NotificationPlanner.plan(
+      [self.source(
+        self.idA,
+        .solar(CalendarDay(unchecked: 2026, 8, 18)),
+        style: .dPlus,
+        daysBefore: [30],
+        hundred: true
+      )],
+      today: self.today,
+      now: self.time(8)
+    )
+    #expect(milestones.map(\.day) == [CalendarDay(unchecked: 2027, 2, 4), CalendarDay(unchecked: 2027, 5, 15)])
+    #expect(milestones.map(\.milestone) == [.hundredDays(200), .hundredDays(300)])
   }
 
   @Test("시각은 0~23시, 0~59분만")
