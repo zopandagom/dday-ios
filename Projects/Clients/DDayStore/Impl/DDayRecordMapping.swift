@@ -15,6 +15,9 @@ struct DDayRecordFields: Hashable, Sendable {
   var countingStyle: String
   var reminderIsEnabled: Bool
   var reminderDaysBefore: [Int]
+  var reminderDisabledDaysBefore: [Int]
+  var reminderEveryHundredDays: Bool
+  var reminderAnniversaries: Bool
   var reminderHour: Int
   var reminderMinute: Int
   var createdAt: Date
@@ -28,6 +31,11 @@ struct DDayRecordFields: Hashable, Sendable {
 /// - 원칙: 쓰기가 만들 수 있는 값은 모두 읽는다. 읽기 실패(`nil`)는 쓰기가 만들 수 없는 값(모르는 문자열,
 ///   없는 양력 날짜, 양력인데 윤달 표시, 범위 밖 시각)에만 한다. 음력 날짜는 유효성을 보지 않는다
 ///   (`LunarDate` 는 어떤 정수 조합이든 만들 수 있고 유효성은 쓸 때 `KoreanLunarCalendar` 가 판단한다).
+///   알림 날짜도 읽기 실패로 보지 않고 `ReminderSettings` 가 정규화한다 (고정 선택지 밖 값은 버린다. 켜짐은 켜진
+///   필드만으로 정한다).
+/// - 알림 날짜: 켜진 날짜는 `reminderDaysBefore`, 나머지 선택지는 `reminderDisabledDaysBefore` (각각 오름차순).
+///   읽기는 켜진 필드만 본다.
+/// - 기념일 토글: `reminderEveryHundredDays`·`reminderAnniversaries` (그대로 옮긴다).
 enum DDayRecordMapping {
   static func fields(id: UUID, draft: DDayDraft, createdAt: Date, updatedAt: Date) -> DDayRecordFields {
     let dateKind: String
@@ -54,7 +62,11 @@ enum DDayRecordMapping {
       repeatRule: self.string(for: draft.schedule.repeatRule),
       countingStyle: self.string(for: draft.schedule.countingStyle),
       reminderIsEnabled: draft.reminder.isEnabled,
-      reminderDaysBefore: draft.reminder.daysBefore,
+      reminderDaysBefore: draft.reminder.enabledDaysBefore.sorted(),
+      reminderDisabledDaysBefore: ReminderSettings.daysBeforeChoices
+        .filter { !draft.reminder.enabledDaysBefore.contains($0) },
+      reminderEveryHundredDays: draft.reminder.remindsEveryHundredDays,
+      reminderAnniversaries: draft.reminder.remindsAnniversaries,
       reminderHour: draft.reminder.time.hour,
       reminderMinute: draft.reminder.time.minute,
       createdAt: createdAt,
@@ -81,8 +93,10 @@ enum DDayRecordMapping {
       schedule: DDaySchedule(date: date, repeatRule: repeatRule, countingStyle: countingStyle),
       reminder: ReminderSettings(
         isEnabled: fields.reminderIsEnabled,
-        daysBefore: fields.reminderDaysBefore,
-        time: time
+        enabledDaysBefore: Set(fields.reminderDaysBefore),
+        time: time,
+        remindsEveryHundredDays: fields.reminderEveryHundredDays,
+        remindsAnniversaries: fields.reminderAnniversaries
       ),
       createdAt: fields.createdAt,
       updatedAt: fields.updatedAt

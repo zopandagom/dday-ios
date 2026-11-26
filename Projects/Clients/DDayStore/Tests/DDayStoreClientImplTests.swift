@@ -32,7 +32,7 @@ struct DDayStoreClientRuleTests {
     #expect(try await store.fetchAll().isEmpty)
   }
 
-  @Test("추가한 값을 다시 읽으면 같다 (윤달 음력 포함)", arguments: StoreKind.allCases)
+  @Test("추가한 값을 다시 읽으면 같다 (윤달 음력·꺼진 알림 날짜·꺼진 기념일 토글 포함)", arguments: StoreKind.allCases)
   func addThenFetch(kind: StoreKind) async throws {
     let clock = TestClock(start: Date(timeIntervalSince1970: 100))
     let store = try kind.make(now: clock.next, makeID: IDSequence([Sample.id(1), Sample.id(2)]).next)
@@ -44,7 +44,12 @@ struct DDayStoreClientRuleTests {
         date: Sample.lunar(2025, 6, 15, leap: true),
         repeatRule: .yearly,
         countingStyle: .dPlus,
-        reminder: ReminderSettings(isEnabled: false, daysBefore: [1, 3], time: Sample.time(23, 59))
+        reminder: ReminderSettings(
+          isEnabled: false,
+          enabledDaysBefore: [2, 30],
+          time: Sample.time(23, 59),
+          remindsEveryHundredDays: false
+        )
       )
     )
 
@@ -53,7 +58,10 @@ struct DDayStoreClientRuleTests {
     #expect(solar.updatedAt == solar.createdAt)
     #expect(lunar.id == Sample.id(2))
     #expect(lunar.schedule.date == Sample.lunar(2025, 6, 15, leap: true))
-    #expect(try await store.fetchAll() == [solar, lunar])
+    let fetched = try await store.fetchAll()
+    #expect(fetched == [solar, lunar])
+    #expect(fetched.last?.reminder.remindsEveryHundredDays == false)
+    #expect(fetched.last?.reminder.remindsAnniversaries == true)
   }
 
   @Test("수정하면 내용이 바뀌고 생성 시각은 유지, 수정 시각은 갱신된다", arguments: StoreKind.allCases)
@@ -106,7 +114,7 @@ struct DDayStoreClientRuleTests {
     await #expect(throws: DDayStoreError.alreadyExists) {
       _ = try await store.add(Sample.draft(
         "둘째 값",
-        reminder: ReminderSettings(daysBefore: [1], time: Sample.time(8, 0))
+        reminder: ReminderSettings(enabledDaysBefore: [7], time: Sample.time(8, 0))
       ))
     }
     #expect(try await store.fetchAll() == [first])
