@@ -29,11 +29,16 @@ import SwiftUI
   NavigationStack { HomeView(model: model) }
 }
 
-#Preview("카드") {
+#Preview("카드 (사진 있음·없음)") {
   let today = CalendarDay(Date(), in: .autoupdatingCurrent)
   List {
     ForEach(ExampleSamples.dDays(today: today)) { dDay in
       DDayCardView(item: HomeItem(dDay: dDay, status: DDayStatus(schedule: dDay.schedule, today: today)))
     }
   }
+}
+
+#Preview("손상된 썸네일") {
+  @Previewable @State var model = ExampleScenario.brokenThumbnail.makeModel(clock: ExampleClock())
+  NavigationStack { HomeView(model: model) }
 }
