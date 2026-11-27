@@ -36,7 +36,7 @@
 ## 출시 전 준비 체크리스트 (코드 외)
 | 항목 | 필요 시점 | 상태 |
 |---|---|---|
-| Apple Developer Program 가입, 팀 ID 를 `Env.developmentTeam` 에 입력 | 실기기 테스트 전 | ☐ |
+| Apple Developer Program 가입, 팀 ID 를 `Env.developmentTeam` 에 입력 | 실기기 테스트 전 | ☑ |
 | App ID `com.zopandagom.dday` 등록 | 실기기 테스트 전 | ☐ |
 | App Store Connect 앱 생성, 앱 이름 선점 ("디데이") | 가능한 빨리 | ☐ |
 | `PrivacyInfo.xcprivacy`, 개인정보 처리방침 페이지 | 출시 전 | ☐ |
