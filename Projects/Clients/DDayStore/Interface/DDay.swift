@@ -32,17 +32,21 @@ public struct DDayDraft: Hashable, Sendable {
   public var reminder: ReminderSettings
   /// 사진 변경. 기본 `.keep` (수정에서 사진을 건드리지 않음, 추가에서는 사진 없음).
   public var photo: DDayPhotoChange
+  /// 폴더 id. nil 이면 미분류. 저장소에 없는 폴더 id 면 미분류로 저장한다.
+  public var folderID: UUID?
 
   public init(
     title: String,
     schedule: DDaySchedule,
     reminder: ReminderSettings = .default,
-    photo: DDayPhotoChange = .keep
+    photo: DDayPhotoChange = .keep,
+    folderID: UUID? = nil
   ) {
     self.title = title
     self.schedule = schedule
     self.reminder = reminder
     self.photo = photo
+    self.folderID = folderID
   }
 }
 
@@ -56,6 +60,8 @@ public struct DDay: Hashable, Sendable, Identifiable {
   public let updatedAt: Date
   /// 저장된 사진 (썸네일). 없으면 nil. 압축본은 `fetchPhoto(id:)` 로 읽는다.
   public let photo: DDayPhoto?
+  /// 폴더 id. nil 이면 미분류. 저장소가 돌려주는 값은 늘 지금 있는 폴더 id 거나 nil.
+  public let folderID: UUID?
 
   public init(
     id: UUID,
@@ -64,7 +70,8 @@ public struct DDay: Hashable, Sendable, Identifiable {
     reminder: ReminderSettings,
     createdAt: Date,
     updatedAt: Date,
-    photo: DDayPhoto? = nil
+    photo: DDayPhoto? = nil,
+    folderID: UUID? = nil
   ) {
     self.id = id
     self.title = title
@@ -73,10 +80,17 @@ public struct DDay: Hashable, Sendable, Identifiable {
     self.createdAt = createdAt
     self.updatedAt = updatedAt
     self.photo = photo
+    self.folderID = folderID
   }
 
-  /// 수정 화면의 시작값. 사진은 `.keep` (저장된 사진 유지).
+  /// 수정 화면의 시작값. 사진은 `.keep` (저장된 사진 유지), 폴더는 그대로.
   public var draft: DDayDraft {
-    DDayDraft(title: self.title, schedule: self.schedule, reminder: self.reminder, photo: .keep)
+    DDayDraft(
+      title: self.title,
+      schedule: self.schedule,
+      reminder: self.reminder,
+      photo: .keep,
+      folderID: self.folderID
+    )
   }
 }

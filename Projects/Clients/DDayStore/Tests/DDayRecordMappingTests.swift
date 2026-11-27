@@ -67,7 +67,7 @@ struct DDayRecordMappingTests {
 
   @Test("저장값으로 바꿨다가 다시 읽으면 같은 디데이다", arguments: Self.roundTripCases)
   func roundTrip(dDay: DDay) {
-    #expect(DDayRecordMapping.dDay(from: DDayRecordMapping.fields(of: dDay)) == dDay)
+    #expect(DDayRecordMapping.dDay(from: DDayRecordMapping.fields(of: dDay), folderIDs: []) == dDay)
   }
 
   @Test(
@@ -78,7 +78,7 @@ struct DDayRecordMappingTests {
   func roundTripRules(repeatRule: RepeatRule, countingStyle: CountingStyle) {
     for date in [Sample.solar(2026, 3, 1), Sample.lunar(2025, 6, 1, leap: true)] {
       let dDay = Self.dDay(Sample.draft(date: date, repeatRule: repeatRule, countingStyle: countingStyle))
-      #expect(DDayRecordMapping.dDay(from: DDayRecordMapping.fields(of: dDay)) == dDay)
+      #expect(DDayRecordMapping.dDay(from: DDayRecordMapping.fields(of: dDay), folderIDs: []) == dDay)
     }
   }
 
@@ -108,42 +108,42 @@ struct DDayRecordMappingTests {
   func unknownDateKind(value: String) {
     var fields = Self.validFields
     fields.dateKind = value
-    #expect(DDayRecordMapping.dDay(from: fields) == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) == nil)
   }
 
   @Test("모르는 반복 방식은 읽지 못한다", arguments: ["Yearly", "monthly", ""])
   func unknownRepeatRule(value: String) {
     var fields = Self.validFields
     fields.repeatRule = value
-    #expect(DDayRecordMapping.dDay(from: fields) == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) == nil)
   }
 
   @Test("모르는 세는 방식은 읽지 못한다", arguments: ["DDay", "dplus", ""])
   func unknownCountingStyle(value: String) {
     var fields = Self.validFields
     fields.countingStyle = value
-    #expect(DDayRecordMapping.dDay(from: fields) == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) == nil)
   }
 
   @Test("없는 양력 날짜는 읽지 못한다", arguments: [(2025, 2, 29), (2026, 13, 1), (0, 1, 1)])
   func invalidSolarDate(year: Int, month: Int, day: Int) {
     var fields = Self.validFields
     (fields.dateYear, fields.dateMonth, fields.dateDay) = (year, month, day)
-    #expect(DDayRecordMapping.dDay(from: fields) == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) == nil)
   }
 
   @Test("양력인데 윤달 표시가 있으면 읽지 못한다")
   func solarWithLeapMonth() {
     var fields = Self.validFields
     fields.dateIsLeapMonth = true
-    #expect(DDayRecordMapping.dDay(from: fields) == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) == nil)
   }
 
   @Test("범위 밖 알림 시각은 읽지 못한다", arguments: [(24, 0), (12, 60), (-1, 0)])
   func invalidTime(hour: Int, minute: Int) {
     var fields = Self.validFields
     (fields.reminderHour, fields.reminderMinute) = (hour, minute)
-    #expect(DDayRecordMapping.dDay(from: fields) == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) == nil)
   }
 
   @Test("음력 표 밖 날짜도 그대로 읽는다 (쓰기가 만들 수 있는 값)", arguments: [(2051, 1, 1), (2026, 13, 1)])
@@ -151,7 +151,7 @@ struct DDayRecordMappingTests {
     var fields = Self.validFields
     fields.dateKind = "lunar"
     (fields.dateYear, fields.dateMonth, fields.dateDay) = (year, month, day)
-    let dDay = DDayRecordMapping.dDay(from: fields)
+    let dDay = DDayRecordMapping.dDay(from: fields, folderIDs: [])
     #expect(dDay?.schedule.date == Sample.lunar(year, month, day))
   }
 
@@ -183,7 +183,7 @@ struct DDayRecordMappingTests {
     var fields = Self.validFields
     fields.reminderDaysBefore = [7, -3, 0, 7, 14, 366, 1]
     fields.reminderDisabledDaysBefore = [3, 30]
-    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore == [0, 7])
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [])?.reminder.enabledDaysBefore == [0, 7])
   }
 
   @Test("켜진·꺼진 필드에 같은 날이 있으면 켜짐으로 읽는다")
@@ -191,7 +191,7 @@ struct DDayRecordMappingTests {
     var fields = Self.validFields
     fields.reminderDaysBefore = [2]
     fields.reminderDisabledDaysBefore = [2, 7]
-    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore == [2])
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [])?.reminder.enabledDaysBefore == [2])
   }
 
   @Test("꺼진 날짜 필드가 빈 행(main 의 행)은 기본값과 같게 읽고 30일 전은 꺼짐이다")
@@ -199,7 +199,7 @@ struct DDayRecordMappingTests {
     var fields = Self.validFields
     fields.reminderDaysBefore = [0, 2, 7]
     fields.reminderDisabledDaysBefore = []
-    let reminder = DDayRecordMapping.dDay(from: fields)?.reminder
+    let reminder = DDayRecordMapping.dDay(from: fields, folderIDs: [])?.reminder
     #expect(reminder?.enabledDaysBefore == ReminderSettings.default.enabledDaysBefore)
     #expect(reminder?.enabledDaysBefore.contains(30) == false)
     #expect(reminder?.scheduledDaysBefore == [0, 2, 7])
@@ -210,7 +210,7 @@ struct DDayRecordMappingTests {
     var fields = Self.validFields
     fields.reminderDaysBefore = []
     fields.reminderDisabledDaysBefore = [0, 2, 7, 30]
-    #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore.isEmpty == true)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [])?.reminder.enabledDaysBefore.isEmpty == true)
   }
 
   @Test("사진 id 와 썸네일이 둘 다 있을 때만 사진이다")
@@ -229,7 +229,35 @@ struct DDayRecordMappingTests {
     let photo = DDayPhoto(id: Sample.id(3), thumbnail: Data([1]))
     let fields = DDayRecordMapping.fields(of: Self.dDay(Sample.draft()))
 
-    #expect(DDayRecordMapping.dDay(from: fields, photo: photo)?.photo == photo)
-    #expect(DDayRecordMapping.dDay(from: fields)?.photo == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, photo: photo, folderIDs: [])?.photo == photo)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [])?.photo == nil)
+  }
+
+  @Test("fields 는 draft 의 folderID 를 그대로 옮긴다 (없는 폴더 id 도)")
+  func fieldsCarryFolderID() {
+    let draft = DDayDraft(title: "폴더", schedule: Sample.draft().schedule, folderID: Sample.id(9))
+    let fields = DDayRecordMapping.fields(
+      id: Sample.id(1),
+      draft: draft,
+      createdAt: Self.createdAt,
+      updatedAt: Self.updatedAt
+    )
+
+    #expect(fields.folderID == Sample.id(9))
+    #expect(DDayRecordMapping.fields(of: Self.dDay(Sample.draft())).folderID == nil)
+  }
+
+  @Test("folderID 는 읽을 수 있는 폴더 id 집합에 있을 때만 그대로, 아니면 미분류(nil)이고 행은 읽는다")
+  func folderIDNormalization() {
+    var fields = DDayRecordMapping.fields(of: Self.dDay(Sample.draft()))
+    fields.folderID = Sample.id(9)
+
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [Sample.id(9), Sample.id(10)])?.folderID == Sample.id(9))
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [Sample.id(10)])?.folderID == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [])?.folderID == nil)
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: []) != nil)
+
+    fields.folderID = nil
+    #expect(DDayRecordMapping.dDay(from: fields, folderIDs: [Sample.id(9)])?.folderID == nil)
   }
 }

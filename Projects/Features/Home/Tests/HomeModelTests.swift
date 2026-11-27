@@ -18,7 +18,7 @@ struct HomeModelTests {
     return HomeModel(
       store: store,
       today: { clock.day },
-      onAddTapped: { recorder.addCount += 1 },
+      onAddTapped: { recorder.addFolderIDs.append($0) },
       onDDaySelected: { recorder.selected.append($0) }
     )
   }

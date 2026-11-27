@@ -3,11 +3,13 @@ import DDayStoreInterface
 import SwiftUI
 import UIKit
 
-/// 상세 머리의 사진 (폭 가득 3:2). 사진이 없으면 기본 배경, 있으면 썸네일을 늘 아래에 깔고 압축본을 읽어 디코딩했으면 그 위에 덮는다
+/// 상세 머리의 사진 (폭 가득 3:2). 사진이 없으면 폴더 색 기본 배경(미분류는 기본 배경), 있으면 썸네일을 늘 아래에 깔고 압축본을 읽어 디코딩했으면 그 위에 덮는다
 /// (압축본 디코딩 전·실패에 깜빡이지 않게). 읽는 중·nil·실패면 썸네일만 보인다.
 struct DetailPhotoView: View {
   let photo: DDayPhoto?
   let largePhoto: DDayDetailModel.LargePhoto?
+  /// 사진이 없거나 썸네일 디코딩에 실패했을 때의 배경 색. nil 이면 미분류 기본 배경.
+  let folderColor: FolderColor?
 
   var body: some View {
     Color.clear
@@ -23,13 +25,13 @@ struct DetailPhotoView: View {
   private var content: some View {
     if let photo = self.photo {
       ZStack {
-        CardThumbnailImage(photo: photo)
+        CardThumbnailImage(photo: photo, folderColor: self.folderColor)
         if case let .loaded(data) = self.largePhoto {
           DetailLargePhotoImage(photoID: photo.id, data: data)
         }
       }
     } else {
-      DefaultCardBackground()
+      DefaultCardBackground(folderColor: self.folderColor)
     }
   }
 }

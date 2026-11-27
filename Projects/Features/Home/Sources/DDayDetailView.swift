@@ -1,5 +1,6 @@
 import Combine
 import Core
+import DesignSystem
 import SwiftUI
 
 /// 디데이 상세. 상태를 읽어 그리기만 하고, 사용자 동작·앱 상태 변화는 Model 의 이벤트 메서드로 넘긴다.
@@ -64,7 +65,11 @@ public struct DDayDetailView: View {
   /// 사진, 제목, 카운트.
   private var header: some View {
     VStack(alignment: .leading, spacing: 12) {
-      DetailPhotoView(photo: self.model.dDay.photo, largePhoto: self.model.largePhoto)
+      DetailPhotoView(
+        photo: self.model.dDay.photo,
+        largePhoto: self.model.largePhoto,
+        folderColor: self.model.folder?.color
+      )
       HStack(alignment: .firstTextBaseline, spacing: 12) {
         // 사용자 입력 그대로 (문구 키로 쓰지 않는다)
         Text(verbatim: self.model.dDay.title)
@@ -82,6 +87,15 @@ public struct DDayDetailView: View {
   @ViewBuilder
   private var rows: some View {
     let schedule = self.model.dDay.schedule
+    LabeledContent {
+      if let folder = self.model.folder {
+        FolderLabel(name: folder.name, color: folder.color, icon: folder.icon)
+      } else {
+        FolderLabel.unfiled
+      }
+    } label: {
+      Text(HomeText.detailFolder)
+    }
     LabeledContent {
       VStack(alignment: .trailing, spacing: 2) {
         Text(verbatim: HomeText.dateText(self.model.status.date, locale: self.locale))

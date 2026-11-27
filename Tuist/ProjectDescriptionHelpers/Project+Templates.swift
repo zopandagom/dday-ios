@@ -8,9 +8,11 @@ public enum Env {
   /// 앱 타깃(App·Example) Info.plist 에 공통으로 넣는 값.
   /// `CFBundleLocalizations`: 하위 리소스 번들(Feature 문구)의 언어가 메인 앱의 지원 언어를 따르므로 ko·en 을 선언한다.
   /// 없으면 하위 번들 언어가 메인 앱 developmentRegion 하나로 고정된다.
+  /// `UISupportedInterfaceOrientations`: 세로 화면만 지원한다 (PRODUCT §2 "최소 지원").
   static let appInfoPlist: [String: Plist.Value] = [
     "UILaunchScreen": [:],
     "CFBundleLocalizations": ["ko", "en"],
+    "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
   ]
   /// Apple Developer Program 팀 ID ("Joongwon Kim", 개인 팀). 실기기 빌드는 Xcode 자동 서명으로 프로비저닝한다.
   /// `make build`/`make test` 와 CI 는 서명 없이 빌드하므로 이 값을 쓰지 않는다.
@@ -124,14 +126,16 @@ public extension Project {
     )
   }
 
-  /// Shared 모듈: 모듈 / Tests. 다른 모듈에 의존하지 않는다.
-  static func shared(_ shared: Shared) -> Project {
-    Project(
+  /// Shared 모듈: 모듈 / Tests. Client·Feature 에 의존하지 않고, 다른 Shared 는 `shared` 로만 의존한다 (예: DesignSystem → Core).
+  /// - Parameter shared: 이 모듈이 쓰는 다른 Shared 모듈. 모듈·Tests 에 연결된다.
+  static func shared(_ shared: Shared, shared dependencies: [Shared] = []) -> Project {
+    let dependencies = dependencies.map { TargetDependency.shared($0) }
+    return Project(
       name: shared.name,
       settings: .settings(base: Env.baseSettings),
       targets: [
-        .module(name: shared.name, sources: "Sources", dependencies: []),
-        .tests(name: shared.tests, dependencies: [.target(name: shared.name)]),
+        .module(name: shared.name, sources: "Sources", dependencies: dependencies),
+        .tests(name: shared.tests, dependencies: [.target(name: shared.name)] + dependencies),
       ]
     )
   }

@@ -23,6 +23,12 @@ enum HomeText {
   static var detailFirstDate: LocalizedStringResource { self.resource("home.detail.firstDate") }
   static var detailRepeat: LocalizedStringResource { self.resource("home.detail.repeat") }
   static var detailCounting: LocalizedStringResource { self.resource("home.detail.counting") }
+  static var detailFolder: LocalizedStringResource { self.resource("home.detail.folder") }
+  static var filterAll: LocalizedStringResource { self.resource("home.filter.all") }
+  static var filterEmptyFolderTitle: LocalizedStringResource { self.resource("home.filterEmpty.folderTitle") }
+  static var filterEmptyUnfiledTitle: LocalizedStringResource { self.resource("home.filterEmpty.unfiledTitle") }
+  static var filterEmptyFolderMessage: LocalizedStringResource { self.resource("home.filterEmpty.folderMessage") }
+  static var filterEmptyUnfiledMessage: LocalizedStringResource { self.resource("home.filterEmpty.unfiledMessage") }
 
   /// 카드의 카운트 문구 ("D-3", "D-DAY", "D+10", "11일째").
   static func count(_ label: DDayCountLabel) -> LocalizedStringResource {

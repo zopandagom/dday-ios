@@ -40,7 +40,7 @@ enum ExamplePhotos {
   }
 
   /// 두 색 그림의 카드 사진 (압축본 1600×1067 + 그 축소본 썸네일 400×267). 만들지 못한 쪽은 빈 Data
-  /// (썸네일이 비면 카드는 기본 배경, 압축본이 비면 상세는 썸네일을 보인다).
+  /// (썸네일이 비면 카드는 폴더 색 기본 배경, 압축본이 비면 상세는 썸네일을 보인다).
   static func cardPhoto(_ start: RGB, _ end: RGB) -> CardPhoto {
     guard let full = self.drawing(start: start, end: end) else {
       return CardPhoto(image: Data(), thumbnail: Data())
@@ -49,7 +49,7 @@ enum ExamplePhotos {
     return CardPhoto(image: self.jpeg(full), thumbnail: thumbnail.map(self.jpeg) ?? Data())
   }
 
-  /// 이미지가 아닌 썸네일·압축본 (손상된 사진 카드: 디코딩 실패 → 카드·상세 모두 기본 배경).
+  /// 이미지가 아닌 썸네일·압축본 (손상된 사진 카드: 디코딩 실패 → 카드·상세 모두 폴더 색 기본 배경, 미분류는 기본 배경).
   static let broken = Sample(
     photo: DDayPhoto(id: UUID(), thumbnail: Data("not an image".utf8)),
     image: Data("not an image".utf8)

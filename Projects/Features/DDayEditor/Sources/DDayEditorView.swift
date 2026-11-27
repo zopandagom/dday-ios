@@ -1,5 +1,6 @@
 import Core
 import DDayStoreInterface
+import DesignSystem
 import PhotoInterface
 import SwiftUI
 
@@ -24,6 +25,10 @@ public struct DDayEditorView<PickerButton: View>: View {
       Form {
         DDayEditorPhotoSection(model: self.model, photoPickerButton: self.photoPickerButton)
         self.titleSection
+        // 폴더 목록이 없으면(홈 불러오기 전·실패) 섹션을 숨기고 미분류로 저장한다.
+        if !self.model.folders.isEmpty {
+          self.folderSection
+        }
         DDayEditorDateSection(model: self.model)
         self.repeatSection
         self.countingSection
@@ -144,6 +149,22 @@ public struct DDayEditorView<PickerButton: View>: View {
     } footer: {
       if self.model.isTitleEmpty {
         Text(DDayEditorText.titleEmpty)
+      }
+    }
+  }
+
+  // MARK: - 폴더
+
+  /// 메뉴 Picker (시트 안 자르기 push 와 내비게이션 방식이 섞이지 않게 `.navigationLink` 스타일은 쓰지 않는다).
+  private var folderSection: some View {
+    Section {
+      Picker(selection: Binding(get: { self.model.folderID }, set: { self.model.folderChanged($0) })) {
+        FolderLabel.unfiled.tag(UUID?.none)
+        ForEach(self.model.folders) { folder in
+          FolderLabel(name: folder.name, color: folder.color, icon: folder.icon).tag(Optional(folder.id))
+        }
+      } label: {
+        Text(DDayEditorText.folderSection)
       }
     }
   }

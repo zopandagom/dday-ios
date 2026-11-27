@@ -7,6 +7,21 @@ import SwiftUI
   DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)
 }
 
+#Preview("추가 (가족 칩에서 열림)") {
+  @Previewable @State var model = ExampleScenario.addInFolder.makePreviewModel()
+  DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)
+}
+
+#Preview("수정 (연인 폴더)") {
+  @Previewable @State var model = ExampleScenario.editWithFolder.makePreviewModel()
+  DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)
+}
+
+#Preview("폴더 없음 (섹션 숨김)") {
+  @Previewable @State var model = ExampleScenario.noFolders.makePreviewModel()
+  DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)
+}
+
 #Preview("수정(사진 있음)") {
   @Previewable @State var model = ExampleScenario.editWithPhoto.makePreviewModel()
   DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)

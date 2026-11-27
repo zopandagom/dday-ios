@@ -1,6 +1,7 @@
 import DDayStoreInterface
 import DDayStoreTesting
 import Foundation
+import Synchronization
 
 /// 불러오기는 Fake 에 맡기고 삭제는 항상 `.saveFailed` 로 실패하는 저장소 (삭제 실패 시나리오).
 final class DeleteFailingStore: DDayStoreClient {
@@ -29,11 +30,19 @@ final class DeleteFailingStore: DDayStoreClient {
   func fetchPhoto(id: UUID) async throws(DDayStoreError) -> Data? {
     try await self.base.fetchPhoto(id: id)
   }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.fetchFolders()
+  }
 }
 
-/// `fetchAll`·`fetchPhoto` 가 돌아오지 않는 저장소 (로딩 화면 Preview). 쓰기는 모두 `.saveFailed`.
+/// `fetchAll`·`fetchPhoto`·`fetchFolders` 가 돌아오지 않는 저장소 (로딩 화면 Preview). 쓰기는 모두 `.saveFailed`.
 final class NeverEndingStore: DDayStoreClient {
   func fetchAll() async throws(DDayStoreError) -> [DDay] {
+    try await Self.waitForever()
+  }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
     try await Self.waitForever()
   }
 
@@ -94,6 +103,10 @@ final class SlowPhotoStore: DDayStoreClient {
     try? await Task.sleep(for: self.delay)
     return try await self.base.fetchPhoto(id: id)
   }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.fetchFolders()
+  }
 }
 
 /// 압축본 읽기(`fetchPhoto`)만 늘 `.loadFailed` 로 실패하는 저장소 (압축본 읽기 실패 시나리오). 나머지는 `base` 그대로.
@@ -122,5 +135,52 @@ final class PhotoReadFailingStore: DDayStoreClient {
 
   func fetchPhoto(id _: UUID) async throws(DDayStoreError) -> Data? {
     throw .loadFailed
+  }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.fetchFolders()
+  }
+}
+
+/// 폴더 읽기(`fetchFolders`)만 처음 `failures` 번 `.loadFailed` 로 실패하는 저장소 (폴더 읽기 실패 시나리오). 나머지는 `base` 그대로.
+final class FolderFetchFailingStore: DDayStoreClient {
+  private let base: any DDayStoreClient
+  private let remainingFailures: Mutex<Int>
+
+  init(base: any DDayStoreClient, failures: Int) {
+    self.base = base
+    self.remainingFailures = Mutex(failures)
+  }
+
+  func fetchAll() async throws(DDayStoreError) -> [DDay] {
+    try await self.base.fetchAll()
+  }
+
+  func add(_ draft: DDayDraft) async throws(DDayStoreError) -> DDay {
+    try await self.base.add(draft)
+  }
+
+  func update(id: UUID, _ draft: DDayDraft) async throws(DDayStoreError) -> DDay {
+    try await self.base.update(id: id, draft)
+  }
+
+  func delete(id: UUID) async throws(DDayStoreError) {
+    try await self.base.delete(id: id)
+  }
+
+  func fetchPhoto(id: UUID) async throws(DDayStoreError) -> Data? {
+    try await self.base.fetchPhoto(id: id)
+  }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    let fails = self.remainingFailures.withLock { remaining in
+      guard remaining > 0 else { return false }
+      remaining -= 1
+      return true
+    }
+    if fails {
+      throw .loadFailed
+    }
+    return try await self.base.fetchFolders()
   }
 }

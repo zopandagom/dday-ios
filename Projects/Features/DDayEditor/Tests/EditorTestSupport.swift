@@ -36,7 +36,8 @@ enum EditorSample {
       enabledDaysBefore: [0, 30],
       time: EditorSample.time(20, 30)
     ),
-    photo: DDayPhoto? = nil
+    photo: DDayPhoto? = nil,
+    folderID: UUID? = nil
   ) -> DDay {
     DDay(
       id: self.originalID,
@@ -45,9 +46,17 @@ enum EditorSample {
       reminder: reminder,
       createdAt: self.createdAt,
       updatedAt: self.createdAt,
-      photo: photo
+      photo: photo,
+      folderID: folderID
     )
   }
+
+  /// Fake 기본 폴더 (생일·가족·연인·기타 순서).
+  static let folders = DDayStoreClientFake.defaultFolders
+  static var family: DDayFolder { EditorSample.folders[1] }
+  static var couple: DDayFolder { EditorSample.folders[2] }
+  /// 어느 목록에도 없는 폴더 id.
+  static let missingFolderID = UUID(uuidString: "00000000-0000-0000-0000-00000000FFFF")!
 
   /// 저장된 사진 (id 고정).
   static let storedPhotoID = UUID(uuidString: "00000000-0000-0000-0000-0000000000AA")!
@@ -98,6 +107,8 @@ func makeEditor(
   store: any DDayStoreClient = DDayStoreClientFake(),
   photoClient: any PhotoClient = PhotoClientFake(),
   today: CalendarDay = EditorSample.today,
+  folders: [DDayFolder] = [],
+  defaultFolderID: UUID? = nil,
   recorder: OutcomeRecorder = OutcomeRecorder()
 ) -> DDayEditorModel {
   DDayEditorModel(
@@ -105,6 +116,8 @@ func makeEditor(
     store: store,
     photoClient: photoClient,
     today: today,
+    folders: folders,
+    defaultFolderID: defaultFolderID,
     onFinished: { recorder.outcomes.append($0) }
   )
 }

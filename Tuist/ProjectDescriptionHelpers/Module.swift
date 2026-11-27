@@ -42,9 +42,12 @@ public enum Feature: String, CaseIterable {
 }
 
 /// 여러 모듈이 함께 쓰는 공용 모듈 (도메인 값 타입, 공용 UI). Apple 데이터 프레임워크와 Client 에 의존하지 않는다.
+/// 다른 Shared 는 `Project.shared(_:shared:)` 로만 의존한다 (예: DesignSystem → Core).
 /// 각 Shared 모듈은 모듈 / Tests 두 타깃으로 나뉜다.
 public enum Shared: String, CaseIterable {
   case core = "Core"
+  /// 공용 UI (폴더 색·아이콘·이름 문구·칩·라벨). SwiftUI 를 쓰고 Core 에 의존한다.
+  case designSystem = "DesignSystem"
 
   public var name: String { self.rawValue }
   public var tests: String { "\(self.rawValue)Tests" }

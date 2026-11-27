@@ -8,8 +8,9 @@ import SwiftData
 ///
 /// - 메서드마다 자기 `ModelContext` 를 만들고(자동 저장 끔) 명시적 `save()` 한 번으로 저장한다. 저장에 실패하면
 ///   `rollback()` 해서 이 호출의 변경은 하나도 남지 않는다.
-/// - 저장소(컨테이너)는 처음 쓰는 호출에서 `DDayContainerCache` 로 연다. 열지 못하면 그 호출이 `.loadFailed` 를 던지고,
-///   실패는 기억하지 않아 다음 호출이 다시 연다. 연 컨테이너는 캐시한다.
+/// - 저장소(컨테이너)는 처음 쓰는 호출에서 `DDayContainerCache` 로 열고 준비한다(기본 폴더 만들기,
+///   `DDayDefaultFolders`). 열거나 준비하지 못하면 그 호출이 `.loadFailed` 를 던지고, 실패는 기억하지 않아 다음 호출이
+///   다시 연다. 열고 준비한 컨테이너는 캐시한다.
 /// - 가변 상태는 컨테이너 캐시(actor)뿐이고 열기 안에 await 가 없어 재진입 문제는 없다.
 /// - 동시 수정은 나중에 저장한 draft 전체가 이긴다 (두 draft 가 섞이지 않음). 수정과 삭제가 겹쳐 삭제가 먼저 저장되면
 ///   수정은 성공을 돌려주지만 행은 삭제된 채로 남는다.
@@ -20,6 +21,10 @@ import SwiftData
 /// - makeID 순서: `add` 는 디데이 id 를 열기 전에, 사진 id 는 시각 다음에 만든다 (`.replace` 일 때만).
 ///   `update` 는 `.notFound` 판정·시각 다음에 사진 id 를 만든다. `.notFound`·`.alreadyExists`·열기 실패로 끝난
 ///   호출은 사진 id·시각을 쓰지 않는다 (`add` 의 디데이 id 는 쓴다). Fake 도 같은 때에 부른다.
+///   폴더 확인은 `add` 의 중복 확인·`update` 의 `.notFound` 판정 다음, 시각 전에 하고 id·시각을 쓰지 않는다.
+///   기본 폴더 생성(준비)은 주입한 `makeID`·`now` 를 쓰지 않는다 (Fake 는 기본 폴더를 만들지 않는다).
+/// - 폴더: `draft.folderID` 가 없는 폴더를 가리키면 nil(미분류)로 바꿔 저장·반환한다 (행 존재로 확인). 읽기는 읽을 수
+///   있는 폴더 id 집합으로 정규화한다. 읽을 수 없는 폴더 행은 쓰기가 만들 수 없는 값이라 정상 흐름에서 둘은 같다.
 /// - 고아 압축본: 수정과 삭제가 겹쳐 삭제가 먼저 저장되면 `.replace` 수정이 넣은 `DDayPhotoRecord` 는 짝 없는
 ///   고아로 남을 수 있다. 고아는 읽히지 않는다: `fetchAll` 은 압축본 모델을 읽지 않고, `fetchPhoto` 는 먼저
 ///   `DDayRecord` 를 찾아 없으면 `.notFound` 다. `add` 는 새 id 라 고아의 `dDayID` 와 겹치지 않고, 같은 `dDayID` 로
@@ -32,7 +37,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
   let containerCache: DDayContainerCache
   let now: @Sendable () -> Date
   let makeID: @Sendable () -> UUID
-  private static let logger = Logger(subsystem: "com.zopandagom.dday", category: "DDayStore")
+  static let logger = Logger(subsystem: "com.zopandagom.dday", category: "DDayStore")
 
   /// 기기 디스크의 기본 저장소(Application Support 의 `DDay.store`)를 쓴다. 여기서는 열지 않는다:
   /// 처음 쓰는 호출에서 열고, 열지 못하면 그 호출이 `.loadFailed` 를 던진 뒤 다음 호출에서 다시 연다.
@@ -46,7 +51,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
     now: @escaping @Sendable () -> Date = Date.init,
     makeID: @escaping @Sendable () -> UUID = UUID.init
   ) {
-    self.containerCache = DDayContainerCache(open: openContainer)
+    self.containerCache = DDayContainerCache(open: openContainer, prepare: DDayDefaultFolders.createIfNeeded(in:))
     self.now = now
     self.makeID = makeID
   }
@@ -85,11 +90,12 @@ public final class DDayStoreClientImpl: DDayStoreClient {
       Self.logFailure("fetchAll", error)
       throw DDayStoreError.loadFailed
     }
+    let folderIDs = try Self.readableFolderIDs(in: context, operation: "fetchAll")
     var dDays: [DDay] = []
     var skippedCount = 0
     for record in records {
       let photo = DDayRecordMapping.photo(id: record.photoID, thumbnail: record.photoThumbnail)
-      if let dDay = DDayRecordMapping.dDay(from: record.fields, photo: photo) {
+      if let dDay = DDayRecordMapping.dDay(from: record.fields, photo: photo, folderIDs: folderIDs) {
         dDays.append(dDay)
       } else {
         skippedCount += 1
@@ -108,7 +114,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
   }
 
   @concurrent
-  public func add(_ draft: DDayDraft) async throws(DDayStoreError) -> DDay {
+  public func add(_ originalDraft: DDayDraft) async throws(DDayStoreError) -> DDay {
     // id 는 열기 전에 만든다: 열기 실패(`.loadFailed`)에서도 id 를 하나 쓴 뒤 실패해 Fake 와 실패 지점이 같다.
     let id = self.makeID()
     let context = try await self.makeContext()
@@ -121,6 +127,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
       throw DDayStoreError.loadFailed
     }
     guard existingCount == 0 else { throw DDayStoreError.alreadyExists }
+    let draft = try Self.normalizingFolder(originalDraft, in: context, operation: "add")
     let timestamp = self.now()
     let record = DDayRecord(DDayRecordMapping.fields(
       id: id,
@@ -141,16 +148,18 @@ public final class DDayStoreClientImpl: DDayStoreClient {
       reminder: draft.reminder,
       createdAt: timestamp,
       updatedAt: timestamp,
-      photo: DDayRecordMapping.photo(id: record.photoID, thumbnail: record.photoThumbnail)
+      photo: DDayRecordMapping.photo(id: record.photoID, thumbnail: record.photoThumbnail),
+      folderID: draft.folderID
     )
   }
 
   @concurrent
-  public func update(id: UUID, _ draft: DDayDraft) async throws(DDayStoreError) -> DDay {
+  public func update(id: UUID, _ originalDraft: DDayDraft) async throws(DDayStoreError) -> DDay {
     let context = try await self.makeContext()
     guard let record = try Self.fetchRecord(id: id, in: context, operation: "update") else {
       throw DDayStoreError.notFound
     }
+    let draft = try Self.normalizingFolder(originalDraft, in: context, operation: "update")
     let createdAt = record.createdAt
     let timestamp = self.now()
     // 읽지 못하던 행도 모든 필드를 대입해 고쳐진다. 사진 필드는 `apply` 가 건드리지 않아 `.keep` 이면 그대로다.
@@ -176,7 +185,8 @@ public final class DDayStoreClientImpl: DDayStoreClient {
       reminder: draft.reminder,
       createdAt: createdAt,
       updatedAt: timestamp,
-      photo: DDayRecordMapping.photo(id: record.photoID, thumbnail: record.photoThumbnail)
+      photo: DDayRecordMapping.photo(id: record.photoID, thumbnail: record.photoThumbnail),
+      folderID: draft.folderID
     )
   }
 
@@ -212,6 +222,12 @@ public final class DDayStoreClientImpl: DDayStoreClient {
       return nil
     }
     return photoRecord.imageData
+  }
+
+  @concurrent
+  public func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    let context = try await self.makeContext()
+    return try Self.readableFolders(in: context, operation: "fetchFolders")
   }
 
   // MARK: - 내부
@@ -294,7 +310,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
     }
   }
 
-  private static func logFailure(_ operation: String, _ error: any Error) {
+  static func logFailure(_ operation: String, _ error: any Error) {
     self.logger.error(
       "DDayStore \(operation, privacy: .public) failed: \(String(describing: type(of: error)), privacy: .public)"
     )

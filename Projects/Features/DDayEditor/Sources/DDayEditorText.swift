@@ -19,6 +19,7 @@ enum DDayEditorText {
   static var dateAdjusted: LocalizedStringResource { self.resource("editor.date.adjusted") }
   static var repeatSection: LocalizedStringResource { self.resource("editor.section.repeat") }
   static var countingSection: LocalizedStringResource { self.resource("editor.section.counting") }
+  static var folderSection: LocalizedStringResource { self.resource("editor.section.folder") }
   static var reminderSection: LocalizedStringResource { self.resource("editor.section.reminder") }
   static var reminderEnabled: LocalizedStringResource { self.resource("editor.reminder.enabled") }
   static var reminderTime: LocalizedStringResource { self.resource("editor.reminder.time") }
