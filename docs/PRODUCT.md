@@ -39,5 +39,5 @@
 
 | ✅ 해야 할 것 | ❌ 하지 말아야 할 것 | 강제 |
 |---|---|---|
-| 저장 형식(`@Model` 필드·저장 문자열)을 바꿀 때는 새 `VersionedSchema` 와 `SchemaMigrationPlan` 단계를 추가한다 | 출시된 스키마 버전(`DDaySchemaV1` 등)의 `@Model` 필드나 저장 문자열을 직접 고치기 | |
+| 저장 형식(`@Model` 필드·저장 문자열)을 바꿀 때는 새 `VersionedSchema` 와 `SchemaMigrationPlan` 단계를 추가한다. 단 출시(1.0.0) 전에는 V1 을 직접 고치고 V1 문서 주석에 '출시 전 변경'으로 적는다. 이때 추가 필드는 기본값(또는 optional)이 필수이고(없으면 옛 저장소가 134110 으로 열리지 않는다), 옛 저장소 열기 테스트(`DDayStoreLegacyOpenTests`)를 함께 고친다 | 출시된 스키마 버전(`DDaySchemaV1` 등)의 `@Model` 필드나 저장 문자열을 직접 고치기 | |
 | 앱 화면(Feature `Sources`·App) 문구는 그 Feature 의 String Catalog 에 ko·en 을 모두 넣는다 (Example 데모 앱의 시나리오 이름 같은 개발용 문구는 제외). 숫자는 문자열(`String(n)`)로 넘겨 자릿수 구분 없이 표시한다 | 앱 화면에 문자열 하드코딩, `LunarDate.description`·`CalendarDay.description` 으로 화면 표시 | |
