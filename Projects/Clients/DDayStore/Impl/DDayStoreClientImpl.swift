@@ -23,8 +23,13 @@ import SwiftData
 ///   호출은 사진 id·시각을 쓰지 않는다 (`add` 의 디데이 id 는 쓴다). Fake 도 같은 때에 부른다.
 ///   폴더 확인은 `add` 의 중복 확인·`update` 의 `.notFound` 판정 다음, 시각 전에 하고 id·시각을 쓰지 않는다.
 ///   기본 폴더 생성(준비)은 주입한 `makeID`·`now` 를 쓰지 않는다 (Fake 는 기본 폴더를 만들지 않는다).
+///   폴더 쓰기: `addFolder` 는 열기·이름 검증 다음에 폴더 id 를, 중복 확인 다음에 시각을 쓴다. `updateFolder` 는
+///   `.notFound`·이름 검증 다음에 시각을 쓴다. `moveFolders`·`deleteFolder` 는 id·시각을 쓰지 않는다.
 /// - 폴더: `draft.folderID` 가 없는 폴더를 가리키면 nil(미분류)로 바꿔 저장·반환한다 (행 존재로 확인). 읽기는 읽을 수
 ///   있는 폴더 id 집합으로 정규화한다. 읽을 수 없는 폴더 행은 쓰기가 만들 수 없는 값이라 정상 흐름에서 둘은 같다.
+///   폴더 쓰기(`addFolder`·`updateFolder`·`moveFolders`·`deleteFolder`, `DDayStoreClientImpl+FolderEditing`)도 각각
+///   save 한 번이다. 이름은 `FolderNameRule` 로 검증하고, 읽을 수 없는 폴더 행의 순서·읽을 수 없는 디데이 행은 지우거나
+///   바꾸지 않는다 (폴더를 지우면 그 디데이 행은 미분류로 옮긴다).
 /// - 고아 압축본: 수정과 삭제가 겹쳐 삭제가 먼저 저장되면 `.replace` 수정이 넣은 `DDayPhotoRecord` 는 짝 없는
 ///   고아로 남을 수 있다. 고아는 읽히지 않는다: `fetchAll` 은 압축본 모델을 읽지 않고, `fetchPhoto` 는 먼저
 ///   `DDayRecord` 를 찾아 없으면 `.notFound` 다. `add` 는 새 id 라 고아의 `dDayID` 와 겹치지 않고, 같은 `dDayID` 로
@@ -233,7 +238,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
   // MARK: - 내부
 
   /// 모든 메서드의 첫 단계. 컨테이너를 (처음이면 열어) 받아 컨텍스트를 만든다. 열기 실패는 로그 후 `.loadFailed`.
-  private func makeContext() async throws(DDayStoreError) -> ModelContext {
+  func makeContext() async throws(DDayStoreError) -> ModelContext {
     let container: ModelContainer
     do {
       container = try await self.containerCache.container()
@@ -266,7 +271,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
     }
   }
 
-  private static func fetchPhotoRecord(
+  static func fetchPhotoRecord(
     dDayID: UUID,
     in context: ModelContext,
     operation: String
@@ -300,7 +305,7 @@ public final class DDayStoreClientImpl: DDayStoreClient {
     }
   }
 
-  private static func save(_ context: ModelContext, operation: String) throws(DDayStoreError) {
+  static func save(_ context: ModelContext, operation: String) throws(DDayStoreError) {
     do {
       try context.save()
     } catch {

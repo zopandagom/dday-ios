@@ -14,6 +14,8 @@ import Foundation
 /// 폴더 id 정규화(에러는 아니다): `add`·`update` 는 draft 가 행이 없는 폴더를 가리키면 nil(미분류)로 저장·반환한다.
 /// `fetchAll` 은 저장된 행이 없거나 읽을 수 없는 폴더를 가리키면 nil 로 돌려준다. 읽을 수 없는 폴더 행은 쓰기가 만들 수
 /// 없는 값이라 정상 흐름에서 둘은 같다.
+/// 폴더 쓰기(`addFolder`·`updateFolder`·`moveFolders`·`deleteFolder`)는 각각 한 번의 save 라 실패하면 그 호출의 변경이
+/// 하나도 남지 않는다.
 public protocol DDayStoreClient: Sendable {
   /// 저장된 디데이 전부. 생성 시각 오름차순(같으면 id 문자열 오름차순). 읽을 수 없는 행은 빼고 돌려준다.
   /// 압축본은 읽지 않는다. 저장소를 열거나 읽지 못하면 `.loadFailed`.
@@ -38,4 +40,27 @@ public protocol DDayStoreClient: Sendable {
   /// 폴더 전부. 순서대로, 순서가 같으면 생성 시각·id 문자열 오름차순. 읽을 수 없는 행은 빼고 돌려준다.
   /// 기본 폴더는 저장소를 처음 열 때 한 번 만든다 (위). 저장소를 열거나 읽지 못하면 `.loadFailed`.
   func fetchFolders() async throws(DDayStoreError) -> [DDayFolder]
+
+  /// 폴더를 맨 뒤에 추가하고 저장된 값을 돌려준다 (새 id, 기본 폴더 키 없음).
+  /// 이름이 규칙에 맞지 않거나 `.system` 이면 `.invalidFolderName`, 같은 id 가 이미 있으면 `.alreadyExists`,
+  /// 저장소를 열거나 읽지 못하면 `.loadFailed`, 저장하지 못하면 `.saveFailed`.
+  func addFolder(_ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder
+
+  /// 폴더의 이름·색·아이콘을 바꾼다. 순서·생성 시각·기본 폴더 키는 그대로다.
+  /// 이름: `.custom` 은 정리해 저장하고 그때부터 그 이름으로 보인다 (기본 폴더도). `.system(key)` 는 그 행의 기본 폴더 키가
+  /// `key` 일 때만 받아 기본 이름(앱 언어)으로 보인다.
+  /// 그 id 가 없으면 `.notFound`, 이름이 맞지 않으면 `.invalidFolderName`, 저장소를 열거나 읽지 못하면 `.loadFailed`,
+  /// 저장하지 못하면 `.saveFailed`.
+  func updateFolder(id: UUID, _ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder
+
+  /// 폴더 순서를 `orderedIDs` 순서로 바꾸고 그 순서의 폴더 목록을 돌려준다 (`fetchFolders` 와 같은 값).
+  /// `orderedIDs` 는 지금 읽을 수 있는 폴더 id 전체여야 한다: 빠지거나 남거나 겹치면 `.notFound` 이고 아무것도 바꾸지 않는다.
+  /// 읽을 수 없는 폴더 행의 순서는 건드리지 않는다. 저장소를 열거나 읽지 못하면 `.loadFailed`, 저장하지 못하면 `.saveFailed`.
+  func moveFolders(_ orderedIDs: [UUID]) async throws(DDayStoreError) -> [DDayFolder]
+
+  /// 폴더를 지우고, 안의 디데이를 `dDays` 대로 미분류로 옮기거나 사진과 함께 지운다 (폴더 삭제와 한 번의 save).
+  /// 함께 지운 디데이 id 를 `fetchAll` 순서로 돌려준다 (`.moveToUnfiled` 면 늘 빈 배열).
+  /// 읽을 수 없는 디데이 행은 지우지 않고 미분류로 옮긴다 (두 방식 모두). 그 id 가 없으면 `.notFound`,
+  /// 저장소를 열거나 읽지 못하면 `.loadFailed`, 저장하지 못하면 `.saveFailed`.
+  func deleteFolder(id: UUID, dDays: FolderDeletion) async throws(DDayStoreError) -> [UUID]
 }
