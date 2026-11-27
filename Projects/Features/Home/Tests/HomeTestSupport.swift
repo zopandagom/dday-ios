@@ -23,7 +23,8 @@ enum HomeSample {
     _ date: DDayDate,
     repeatRule: RepeatRule = .none,
     countingStyle: CountingStyle = .dDay,
-    photo: DDayPhoto? = nil
+    photo: DDayPhoto? = nil,
+    folderID: UUID? = nil
   ) -> DDay {
     let createdAt = Date(timeIntervalSince1970: TimeInterval(number * 10))
     return DDay(
@@ -33,7 +34,8 @@ enum HomeSample {
       reminder: .default,
       createdAt: createdAt,
       updatedAt: createdAt,
-      photo: photo
+      photo: photo,
+      folderID: folderID
     )
   }
 
@@ -50,6 +52,14 @@ enum HomeSample {
   static func solar(_ year: Int, _ month: Int, _ day: Int) -> DDayDate {
     .solar(self.day(year, month, day))
   }
+
+  /// Fake 기본 폴더 (생일·가족·연인·기타 순서).
+  static let folders = DDayStoreClientFake.defaultFolders
+  static var birthday: DDayFolder { HomeSample.folders[0] }
+  static var family: DDayFolder { HomeSample.folders[1] }
+  static var couple: DDayFolder { HomeSample.folders[2] }
+  /// 어느 목록에도 없는 폴더 id.
+  static let missingFolderID = HomeSample.id(9999)
 
   /// 기본 오늘.
   static let today = HomeSample.day(2026, 11, 26)
@@ -86,7 +96,8 @@ final class TestDayClock {
 
 @MainActor
 final class CallbackRecorder {
-  var addCount = 0
+  /// [+] 가 넘긴 추가 기본 폴더 (부른 순서).
+  var addFolderIDs: [UUID?] = []
   var selected: [DDay] = []
 }
 

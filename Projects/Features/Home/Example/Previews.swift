@@ -5,9 +5,41 @@ import Foundation
 import HomeFeature
 import SwiftUI
 
-#Preview("정상") {
+#Preview("정상 (기본 폴더 칩)") {
   @Previewable @State var model = ExampleScenario.normal.makeFlow(clock: ExampleClock()).homeModel
   NavigationStack { HomeView(model: model) }
+}
+
+#Preview("직접 만든 폴더 여럿") {
+  @Previewable @State var model = ExampleScenario.customFolders.makeFlow(clock: ExampleClock()).homeModel
+  NavigationStack { HomeView(model: model) }
+}
+
+#Preview("폴더 없음") {
+  @Previewable @State var model = ExampleScenario.noFolders.makeFlow(clock: ExampleClock()).homeModel
+  NavigationStack { HomeView(model: model) }
+}
+
+#Preview("폴더 색 배경 카드") {
+  let today = CalendarDay(Date(), in: .autoupdatingCurrent)
+  let schedule = DDaySchedule(date: .solar(today))
+  // 다섯 색(기본 폴더 4개 + 버터색 "여행")과 미분류.
+  let colored = DDayStoreClientFake.defaultFolders + [ExampleSamples.customFolders[0]]
+  let folders: [DDayFolder?] = colored.map(Optional.some) + [nil]
+  List {
+    ForEach(Array(folders.enumerated()), id: \.offset) { index, folder in
+      let dDay = DDay(
+        id: UUID(),
+        title: "카드 \(index + 1)",
+        schedule: schedule,
+        reminder: .default,
+        createdAt: Date(timeIntervalSince1970: 0),
+        updatedAt: Date(timeIntervalSince1970: 0),
+        folderID: folder?.id
+      )
+      DDayCardView(item: HomeItem(dDay: dDay, status: DDayStatus(schedule: schedule, today: today), folder: folder))
+    }
+  }
 }
 
 #Preview("빈 목록") {
@@ -24,7 +56,7 @@ import SwiftUI
   @Previewable @State var model = HomeModel(
     store: NeverEndingStore(),
     today: { CalendarDay(Date(), in: .autoupdatingCurrent) },
-    onAddTapped: {},
+    onAddTapped: { _ in },
     onDDaySelected: { _ in }
   )
   NavigationStack { HomeView(model: model) }
@@ -49,8 +81,13 @@ import SwiftUI
   NavigationStack { DDayDetailView(model: model) }
 }
 
-#Preview("상세 (사진 없음)") {
+#Preview("상세 (사진 없음·미분류)") {
   @Previewable @State var model = DetailPreviewSamples.model(dDay: DetailPreviewSamples.withoutPhoto)
+  NavigationStack { DDayDetailView(model: model) }
+}
+
+#Preview("상세 (사진 없음·가족 폴더)") {
+  @Previewable @State var model = DetailPreviewSamples.model(dDay: DetailPreviewSamples.inFamilyFolder)
   NavigationStack { DDayDetailView(model: model) }
 }
 
@@ -95,12 +132,30 @@ private enum DetailPreviewSamples {
     updatedAt: Date(timeIntervalSince1970: 0)
   )
 
+  /// 사진 없는 가족 폴더 디데이 (상세에 폴더 행·민트 배경).
+  static let inFamilyFolder = DDay(
+    id: UUID(),
+    title: "할머니 생신",
+    schedule: DDaySchedule(date: .solar(today.adding(days: 12) ?? today), repeatRule: .yearly),
+    reminder: .default,
+    createdAt: Date(timeIntervalSince1970: 0),
+    updatedAt: Date(timeIntervalSince1970: 0),
+    folderID: DDayStoreClientFake.defaultFolders[1].id
+  )
+
   static func model(
     dDay: DDay,
     wrap: (DDayStoreClientFake) -> any DDayStoreClient = { $0 }
   ) -> DDayDetailModel {
     let image = dDay.photo == nil ? nil : ExampleSamples.defaultPhotos[1]?.image
-    let fake = DDayStoreClientFake(dDays: [dDay], photoImages: image.map { [dDay.id: $0] } ?? [:])
-    return DDayDetailModel(dDay: dDay, store: wrap(fake), today: { Self.today }, onEditTapped: { _ in })
+    let folders = DDayStoreClientFake.defaultFolders
+    let fake = DDayStoreClientFake(dDays: [dDay], photoImages: image.map { [dDay.id: $0] } ?? [:], folders: folders)
+    return DDayDetailModel(
+      dDay: dDay,
+      folders: folders,
+      store: wrap(fake),
+      today: { Self.today },
+      onEditTapped: { _ in }
+    )
   }
 }

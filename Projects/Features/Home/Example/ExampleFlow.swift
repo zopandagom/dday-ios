@@ -8,6 +8,7 @@ import Observation
 /// 시나리오 하나마다 하나를 만들고 `ExampleSession` 이 들고 있다.
 ///
 /// - 카드 탭은 상세를 연다. 상세가 떠 있는 동안 다시 열지 않는다 (두 번 탭·push 중 탭).
+/// - 상세는 열 때 홈의 폴더 목록을 넘긴다 (App 과 같다).
 /// - 상세 [편집] 은 편집 화면 대신 흉내 확인창(`editingDDay`)을 띄운다. 고른 동작을 저장소에 실제로 하고,
 ///   성공하면 결과를 홈·상세 둘 다에 넘긴다 (실패하면 넘기지 않는다). 상세가 지워졌으면(`isRemoved`) 상세를 닫는다.
 @MainActor
@@ -45,8 +46,8 @@ final class ExampleFlow {
     self.homeModel = HomeModel(
       store: store,
       today: today,
-      // Example 에는 추가 화면이 없다.
-      onAddTapped: {},
+      // Example 에는 추가 화면이 없다 (기본 폴더 id 는 DDayEditor Example 에서 확인한다).
+      onAddTapped: { _ in },
       onDDaySelected: { flowReference.flow?.openDetail($0) }
     )
     flowReference.flow = self
@@ -78,6 +79,18 @@ final class ExampleFlow {
   @discardableResult
   func removePhotoTapped(_ dDay: DDay) -> Task<Void, Never> {
     self.save(dDay) { $0.photo = .remove }
+  }
+
+  /// "폴더 바꿔 저장": 홈 폴더 목록에서 다음 폴더로 바꾼다 (마지막 폴더 → 미분류 → 첫 폴더 순환). 폴더가 없으면 미분류 그대로.
+  @discardableResult
+  func changeFolderTapped(_ dDay: DDay) -> Task<Void, Never> {
+    let ids: [UUID?] = self.homeModel.folders.map(\.id) + [nil]
+    let next: UUID? = if let index = ids.firstIndex(of: dDay.folderID) {
+      ids[(index + 1) % ids.count]
+    } else {
+      ids.first ?? nil
+    }
+    return self.save(dDay) { $0.folderID = next }
   }
 
   /// "제목 바꿔 저장": 사진은 그대로 두고 제목 끝에 "*" 를 붙인다.
@@ -113,6 +126,7 @@ final class ExampleFlow {
     guard self.detail == nil else { return }
     let model = DDayDetailModel(
       dDay: dDay,
+      folders: self.homeModel.folders,
       store: self.store,
       today: self.today,
       onEditTapped: { [weak self] in self?.editingDDay = $0 }

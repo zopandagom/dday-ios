@@ -1,7 +1,7 @@
 import Core
 import SwiftUI
 
-/// 디데이 카드 하나 (3:2): 배경(사진 썸네일 또는 기본 배경) 위에 제목, 날짜, 카운트.
+/// 디데이 카드 하나 (3:2): 배경(사진 썸네일, 사진이 없으면 폴더 색 기본 배경) 위에 제목, 날짜, 카운트.
 public struct DDayCardView: View {
   let item: HomeItem
   @Environment(\.locale) private var locale
@@ -29,9 +29,9 @@ public struct DDayCardView: View {
   @ViewBuilder
   private var background: some View {
     if let photo = self.item.dDay.photo {
-      CardThumbnailImage(photo: photo)
+      CardThumbnailImage(photo: photo, folderColor: self.item.folder?.color)
     } else {
-      DefaultCardBackground()
+      DefaultCardBackground(folderColor: self.item.folder?.color)
     }
   }
 

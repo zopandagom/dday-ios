@@ -1,10 +1,12 @@
+import Core
 import DDayStoreInterface
 import SwiftUI
 import UIKit
 
 /// 카드·상세 배경의 사진 썸네일 (상세에서는 압축본 아래에 깐다). 썸네일 JPEG 은 `byPreparingForDisplay()` 로 메인 밖에서 디코딩해 View 일시 상태에 둔다
 /// (PRODUCT §2 썸네일 표시). `.task(id: 사진 id)` 라 사진 id 가 바뀔 때와 카드가 다시 나타날 때 다시 디코딩한다 (캐시 없음).
-/// 디코딩 전에는 중립 색(사진 카드가 기본 배경으로 깜빡이지 않게), 실패하면 기본 배경. 편집 화면의 `EditorThumbnailImage` 와 같은 방식이다 (Feature 끼리 공유할 수 없다).
+/// 디코딩 전에는 중립 색(사진 카드가 기본 배경으로 깜빡이지 않게), 실패하면 폴더 색 기본 배경(미분류는 기본 배경).
+/// 편집 화면의 `EditorThumbnailImage` 와 같은 방식이다 (Feature 끼리 공유할 수 없다).
 struct CardThumbnailImage: View {
   private enum Decoded {
     case pending
@@ -13,6 +15,8 @@ struct CardThumbnailImage: View {
   }
 
   let photo: DDayPhoto
+  /// 디코딩 실패 때의 배경 색. nil 이면 미분류 기본 배경.
+  let folderColor: FolderColor?
   @State private var decoded = Decoded.pending
 
   var body: some View {
@@ -25,7 +29,7 @@ struct CardThumbnailImage: View {
           .resizable()
           .scaledToFill()
       case .failed:
-        DefaultCardBackground()
+        DefaultCardBackground(folderColor: self.folderColor)
       }
     }
     .task(id: self.photo.id) {
@@ -37,10 +41,12 @@ struct CardThumbnailImage: View {
   }
 }
 
-/// 사진이 없는 카드·상세의 기본 배경 (`HomeAsset.defaultCardBackground`).
+/// 사진이 없는 카드·상세의 기본 배경: 폴더 색 배경, 미분류(nil)면 `HomeAsset.defaultCardBackground` (`HomeAsset.cardBackground(for:)`).
 struct DefaultCardBackground: View {
+  let folderColor: FolderColor?
+
   var body: some View {
-    Image(HomeAsset.defaultCardBackground, bundle: .module)
+    Image(HomeAsset.cardBackground(for: self.folderColor), bundle: .module)
       .resizable()
       .scaledToFill()
   }

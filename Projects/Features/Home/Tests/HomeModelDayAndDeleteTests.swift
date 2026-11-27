@@ -61,13 +61,13 @@ extension HomeModelTests {
 
   // MARK: addButtonTapped
 
-  @Test("추가 버튼은 추가 콜백을 한 번 부른다")
+  @Test("추가 버튼은 추가 콜백을 한 번 부른다 (불러오기 전이면 기본 폴더 없음)")
   func addButtonCallsCallback() {
     let model = self.makeModel(store: DDayStoreClientFake())
 
     model.addButtonTapped()
 
-    #expect(self.recorder.addCount == 1)
+    #expect(self.recorder.addFolderIDs == [nil])
   }
 
   // MARK: dDayTapped

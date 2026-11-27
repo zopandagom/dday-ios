@@ -5,6 +5,8 @@ import Observation
 
 /// 디데이 상세 화면의 상태와 로직. App(또는 Example)이 홈 카드 탭에서 만들어 소유하고, 편집 결과를 홈과 이 모델 둘 다에 넘긴다.
 ///
+/// - 폴더: 열 때 App 이 홈의 폴더 목록(`HomeModel.folders`)을 넘기고, 지금 디데이의 폴더(`folder`)는 그 목록에서 찾는다.
+///   편집 결과로 `dDay` 가 바뀌면 같은 차례에 따라 바뀐다 (따로 상태를 두지 않는다).
 /// - 사진의 압축본은 나타날 때 `fetchPhoto(id:)` 로 한 번 읽는다. 실패(`.failed`)한 읽기만 앱 복귀 때 한 번 다시 읽는다.
 ///   읽는 중·nil·실패면 화면은 썸네일을 보인다. 압축본 디코딩은 View 가 한다 (Model 은 `Data` 만 둔다).
 /// - "오늘"은 주입한 `today` 로 구하고, 앱 복귀·날짜 변경·시간대 변경 때 다시 구해 바뀌었을 때만 카운트를 다시 계산한다.
@@ -50,6 +52,13 @@ public final class DDayDetailModel {
   public private(set) var largePhoto: LargePhoto?
   /// 지금 보는 디데이가 지워짐(편집 화면 삭제·이미 지워짐). 한 번 true 면 그대로. App 이 보고 상세를 닫는다.
   public private(set) var isRemoved = false
+  /// 열 때 받은 폴더 목록 (PR② 에서 바뀜 이벤트가 생긴다).
+  public private(set) var folders: [DDayFolder]
+
+  /// 지금 디데이의 폴더. 없거나 목록에 없으면 nil (미분류).
+  public var folder: DDayFolder? {
+    self.dDay.folderID.flatMap { id in self.folders.first { $0.id == id } }
+  }
 
   /// 마지막 카운트 계산에 쓴 오늘.
   private var currentDay: CalendarDay
@@ -60,12 +69,14 @@ public final class DDayDetailModel {
 
   public init(
     dDay: DDay,
+    folders: [DDayFolder] = [],
     store: any DDayStoreClient,
     today: @escaping @MainActor () -> CalendarDay,
     onEditTapped: @escaping @MainActor (DDay) -> Void
   ) {
     let day = today()
     self.dDay = dDay
+    self.folders = folders
     self.currentDay = day
     self.status = DDayStatus(schedule: dDay.schedule, today: day)
     self.largePhoto = dDay.photo == nil ? nil : .notLoaded

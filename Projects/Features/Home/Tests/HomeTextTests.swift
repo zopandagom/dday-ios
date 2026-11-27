@@ -98,6 +98,22 @@ struct HomeTextTests {
     #expect(self.text(HomeText.countingText(style), Self.english) == english)
   }
 
+  @Test(
+    "폴더 칩·필터 빈 화면·상세 폴더 문구",
+    arguments: [
+      (HomeText.filterAll, "전체", "All"),
+      (HomeText.filterEmptyFolderTitle, "이 폴더에 디데이가 없어요", "No D-days in this folder"),
+      (HomeText.filterEmptyUnfiledTitle, "미분류 디데이가 없어요", "No unfiled D-days"),
+      (HomeText.filterEmptyFolderMessage, "[+] 를 눌러 이 폴더에 디데이를 추가해 보세요", "Tap + to add a D-day to this folder"),
+      (HomeText.filterEmptyUnfiledMessage, "폴더에 넣지 않은 디데이가 여기에 보여요", "D-days without a folder show up here"),
+      (HomeText.detailFolder, "폴더", "Folder"),
+    ]
+  )
+  func folderTexts(resource: LocalizedStringResource, korean: String, english: String) {
+    #expect(self.text(resource, Self.korean) == korean)
+    #expect(self.text(resource, Self.english) == english)
+  }
+
   @Test("음력 날짜 아래의 양력 줄은 양력 날짜와 같은 형식")
   func detailSolarDate() {
     let day = HomeSample.day(2027, 2, 7)
