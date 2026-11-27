@@ -58,6 +58,8 @@ struct DDayEditorCropView: View {
         } label: {
           Text(DDayEditorText.cropDone)
         }
+        // 끌기·확대 중에는 막는다: [완료] 는 확정된 zoom·center 로 만들므로, 진행 중이면 보이는 영역과 달라진다.
+        .disabled(self.pinchScale != 1 || self.dragTranslation != .zero)
       }
     }
   }
