@@ -40,6 +40,7 @@ public final class HomeModel {
   @ObservationIgnored private let store: any DDayStoreClient
   @ObservationIgnored private let today: @MainActor () -> CalendarDay
   @ObservationIgnored private let onAddTapped: @MainActor () -> Void
+  /// 카드 탭. App 이 상세를 연다.
   @ObservationIgnored private let onDDaySelected: @MainActor (DDay) -> Void
 
   public init(
@@ -82,7 +83,7 @@ public final class HomeModel {
     self.onAddTapped()
   }
 
-  /// 보이는 항목만 선택한다 (삭제 중이거나 없는 id 는 무시).
+  /// 카드 탭: App 이 상세를 연다 (`onDDaySelected`). 보이는 항목만 선택한다 (삭제 중이거나 없는 id 는 무시).
   public func dDayTapped(id: UUID) {
     guard !self.deletingIDs.contains(id), let dDay = self.dDays.first(where: { $0.id == id }) else { return }
     self.onDDaySelected(dDay)

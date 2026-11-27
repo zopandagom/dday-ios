@@ -11,6 +11,9 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
   case loadFailed
   case deleteFailed
   case brokenThumbnail
+  case slowPhotoRead
+  case photoReadFailed
+  case missingLargePhoto
 
   var id: Self { self }
 
@@ -21,51 +24,77 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
     case .loadFailed: "불러오기 오류 (다시 시도·앱 복귀로 회복)"
     case .deleteFailed: "삭제 실패"
     case .brokenThumbnail: "손상된 썸네일 (기본 배경으로 보임)"
+    case .slowPhotoRead: "느린 압축본 읽기 (3초)"
+    case .photoReadFailed: "압축본 읽기 실패 (상세에 썸네일)"
+    case .missingLargePhoto: "압축본 없음 (상세에 썸네일)"
     }
   }
 
-  /// 이 시나리오의 모델. `today` 는 넘긴 `clock` 인스턴스에서 구한다.
+  /// 이 시나리오의 흐름(홈·상세 모델). `today` 는 넘긴 `clock` 인스턴스에서 구한다.
   @MainActor
-  func makeModel(clock: ExampleClock) -> HomeModel {
+  func makeFlow(clock: ExampleClock) -> ExampleFlow {
+    let samples = ExampleSamples.samples(today: clock.today())
     let store: any DDayStoreClient
     switch self {
     case .normal:
-      store = DDayStoreClientFake(dDays: ExampleSamples.dDays(today: clock.today()))
+      store = DDayStoreClientFake(dDays: samples.dDays, photoImages: samples.photoImages)
     case .empty:
       store = DDayStoreClientFake()
     case .loadFailed:
       // 저장소 열기 실패도 이렇게(첫 불러오기의 .loadFailed) 보인다.
-      let fake = DDayStoreClientFake(dDays: ExampleSamples.dDays(today: clock.today()))
+      let fake = DDayStoreClientFake(dDays: samples.dDays, photoImages: samples.photoImages)
       fake.failNextCall(with: .loadFailed)
       store = fake
     case .deleteFailed:
-      store = DeleteFailingStore(base: DDayStoreClientFake(dDays: ExampleSamples.dDays(today: clock.today())))
+      store = DeleteFailingStore(base: DDayStoreClientFake(dDays: samples.dDays, photoImages: samples.photoImages))
     case .brokenThumbnail:
-      store = DDayStoreClientFake(dDays: ExampleSamples.dDays(today: clock.today(), photos: [
+      let broken = ExampleSamples.samples(today: clock.today(), photos: [
         0: ExamplePhotos.broken,
-        1: ExamplePhotos.thumbnail(.init(0.66, 0.9, 0.81), .init(0.79, 0.71, 1)),
-      ]))
+        1: ExampleSamples.defaultPhotos[4] ?? ExamplePhotos.broken,
+      ])
+      store = DDayStoreClientFake(dDays: broken.dDays, photoImages: broken.photoImages)
+    case .slowPhotoRead:
+      store = SlowPhotoStore(
+        base: DDayStoreClientFake(dDays: samples.dDays, photoImages: samples.photoImages),
+        delay: .seconds(3)
+      )
+    case .photoReadFailed:
+      store = PhotoReadFailingStore(base: DDayStoreClientFake(dDays: samples.dDays, photoImages: samples.photoImages))
+    case .missingLargePhoto:
+      // 사진은 있지만 압축본 행이 없다: fetchPhoto 가 nil.
+      store = DDayStoreClientFake(dDays: samples.dDays)
     }
-    return HomeModel(
-      store: store,
-      today: { clock.today() },
-      onAddTapped: {},
-      onDDaySelected: { _ in }
-    )
+    return ExampleFlow(store: store, today: { clock.today() })
   }
 }
 
 /// 실제 오늘 기준 상대 날짜로 만든 샘플. 네 그룹(다가오는·세는 중·지난·계산 불가)이 모두 나온다.
-/// 일부 카드에 직접 그린 사진 썸네일을 붙인다 (나머지는 기본 배경).
+/// 일부 카드에 직접 그린 사진(썸네일·압축본)을 붙인다 (나머지는 기본 배경).
 enum ExampleSamples {
-  /// 순서 번호 → 사진 (기본 샘플).
-  static let defaultPhotos: [Int: DDayPhoto] = [
-    1: ExamplePhotos.thumbnail(.init(1, 0.78, 0.66), .init(1, 0.56, 0.69)),
-    4: ExamplePhotos.thumbnail(.init(0.66, 0.9, 0.81), .init(0.79, 0.71, 1)),
-    6: ExamplePhotos.thumbnail(.init(1, 0.91, 0.64), .init(1, 0.78, 0.66)),
+  /// 순서 번호 → 사진 (기본 샘플). 한 번만 그린다.
+  static let defaultPhotos: [Int: ExamplePhotos.Sample] = [
+    1: ExamplePhotos.sample(.init(1, 0.78, 0.66), .init(1, 0.56, 0.69)),
+    4: ExamplePhotos.sample(.init(0.66, 0.9, 0.81), .init(0.79, 0.71, 1)),
+    6: ExamplePhotos.sample(.init(1, 0.91, 0.64), .init(1, 0.78, 0.66)),
   ]
 
-  static func dDays(today: CalendarDay, photos: [Int: DDayPhoto] = ExampleSamples.defaultPhotos) -> [DDay] {
+  /// 샘플 디데이와 그 압축본(디데이 id → JPEG, Fake 의 `photoImages`).
+  static func samples(
+    today: CalendarDay,
+    photos: [Int: ExamplePhotos.Sample] = ExampleSamples.defaultPhotos
+  ) -> (dDays: [DDay], photoImages: [UUID: Data]) {
+    let dDays = self.dDays(today: today, photos: photos.mapValues(\.photo))
+    var photoImages: [UUID: Data] = [:]
+    for (index, dDay) in dDays.enumerated() {
+      photoImages[dDay.id] = photos[index]?.image
+    }
+    return (dDays, photoImages)
+  }
+
+  static func dDays(
+    today: CalendarDay,
+    photos: [Int: DDayPhoto] = ExampleSamples.defaultPhotos.mapValues(\.photo)
+  ) -> [DDay] {
     func solar(_ offset: Int) -> DDayDate {
       .solar(today.adding(days: offset) ?? today)
     }

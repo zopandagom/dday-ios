@@ -72,4 +72,39 @@ struct HomeTextTests {
     #expect(HomeText.dateText(nil, locale: Self.korean) == "지원하지 않는 날짜예요")
     #expect(HomeText.dateText(nil, locale: Self.english) == "Unsupported date")
   }
+
+  @Test(
+    "상세의 반복 문구",
+    arguments: [
+      (RepeatRule.none, "반복 없음", "Never"),
+      (.yearly, "매년", "Every year"),
+    ]
+  )
+  func repeatText(rule: RepeatRule, korean: String, english: String) {
+    #expect(self.text(HomeText.repeatText(rule), Self.korean) == korean)
+    #expect(self.text(HomeText.repeatText(rule), Self.english) == english)
+  }
+
+  @Test(
+    "상세의 세는 방식 문구",
+    arguments: [
+      (CountingStyle.dDay, "남은 날 (D-day)", "Days left (D-day)"),
+      (.dPlus, "지난 날 (D+)", "Days since (D+)"),
+      (.dayOne, "시작일을 1일로", "Start as Day 1"),
+    ]
+  )
+  func countingText(style: CountingStyle, korean: String, english: String) {
+    #expect(self.text(HomeText.countingText(style), Self.korean) == korean)
+    #expect(self.text(HomeText.countingText(style), Self.english) == english)
+  }
+
+  @Test("음력 날짜 아래의 양력 줄은 양력 날짜와 같은 형식")
+  func detailSolarDate() {
+    let day = HomeSample.day(2027, 2, 7)
+
+    #expect(HomeText.detailSolarDate(day, locale: Self.korean) == "양력 2027년 2월 7일")
+    #expect(HomeText.detailSolarDate(day, locale: Self.english) == "Solar February 7, 2027")
+    #expect(HomeText
+      .detailSolarDate(day, locale: Self.korean) == "양력 \(HomeText.dateText(.solar(day), locale: Self.korean))")
+  }
 }

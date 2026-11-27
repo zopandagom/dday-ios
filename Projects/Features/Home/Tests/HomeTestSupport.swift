@@ -22,7 +22,8 @@ enum HomeSample {
     _ number: Int,
     _ date: DDayDate,
     repeatRule: RepeatRule = .none,
-    countingStyle: CountingStyle = .dDay
+    countingStyle: CountingStyle = .dDay,
+    photo: DDayPhoto? = nil
   ) -> DDay {
     let createdAt = Date(timeIntervalSince1970: TimeInterval(number * 10))
     return DDay(
@@ -31,8 +32,19 @@ enum HomeSample {
       schedule: DDaySchedule(date: date, repeatRule: repeatRule, countingStyle: countingStyle),
       reminder: .default,
       createdAt: createdAt,
-      updatedAt: createdAt
+      updatedAt: createdAt,
+      photo: photo
     )
+  }
+
+  /// 사진 버전 id 가 `1000 + number` 인 사진 (썸네일은 가짜 바이트).
+  static func photo(_ number: Int) -> DDayPhoto {
+    DDayPhoto(id: self.id(1000 + number), thumbnail: Data("thumb\(number)".utf8))
+  }
+
+  /// 압축본 자리의 가짜 바이트.
+  static func image(_ number: Int) -> Data {
+    Data("image\(number)".utf8)
   }
 
   static func solar(_ year: Int, _ month: Int, _ day: Int) -> DDayDate {
