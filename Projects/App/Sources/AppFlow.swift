@@ -4,6 +4,7 @@ import DDayStoreInterface
 import Foundation
 import HomeFeature
 import Observation
+import PhotoInterface
 
 /// 화면 흐름(홈 ↔ 편집 시트) 상태. App 이 `@State` 로 소유한다.
 ///
@@ -14,6 +15,7 @@ import Observation
 /// - 홈과 편집 화면은 같은 저장소를 쓴다. 편집 결과는 `HomeModel.dDaySaved(_:)`·`dDaySavedAsNew(_:replacing:)`·
 ///   `dDayDeleted(id:)` 로 1:1 넘기고 홈은 저장소를 다시 읽지 않는다.
 /// - 편집 화면은 열 때 "오늘"을 한 번 받아 추가 모드의 시작 날짜로 쓴다.
+/// - 편집 화면의 사진 처리(읽기·자르기·JPEG 만들기)는 앱에 하나인 `photoClient` 로 한다.
 @MainActor
 @Observable
 final class AppFlow {
@@ -28,12 +30,18 @@ final class AppFlow {
 
   @ObservationIgnored private var presentation = DDayEditorPresentation()
   @ObservationIgnored private let store: any DDayStoreClient
+  @ObservationIgnored private let photoClient: any PhotoClient
   @ObservationIgnored private let today: @MainActor () -> CalendarDay
 
-  init(store: any DDayStoreClient, today: @escaping @MainActor () -> CalendarDay) {
+  init(
+    store: any DDayStoreClient,
+    photoClient: any PhotoClient,
+    today: @escaping @MainActor () -> CalendarDay
+  ) {
     // 홈 콜백이 self 를 강하게 잡지 않도록 약한 참조 상자를 넘기고 init 끝에서 채운다.
     let flowReference = WeakAppFlowReference()
     self.store = store
+    self.photoClient = photoClient
     self.today = today
     self.homeModel = HomeModel(
       store: store,
@@ -60,6 +68,7 @@ final class AppFlow {
     let model = DDayEditorModel(
       mode: mode,
       store: self.store,
+      photoClient: self.photoClient,
       today: self.today(),
       onFinished: { [weak self] outcome in
         self?.editorFinished(outcome, sessionID: sessionID)

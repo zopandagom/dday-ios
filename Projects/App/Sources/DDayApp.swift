@@ -3,6 +3,7 @@ import DDayEditorFeature
 import DDayStoreImpl
 import Foundation
 import HomeFeature
+import PhotoImpl
 import SwiftUI
 
 /// 조립 지점. Client Impl 을 만들어 Feature Model 에 주입하는 곳은 여기뿐이다.
@@ -14,8 +15,12 @@ struct DDayApp: App {
     // 저장소는 앱에 하나. 여기서는 열지 않고 첫 호출에서 연다 (열기 실패는 목록의 불러오기 오류로 보인다).
     // 홈과 편집 화면이 이 store 를 같이 쓴다.
     let store = DDayStoreClientImpl()
+    // 사진 처리는 상태가 없어 앱에 하나만 둔다. 선택 버튼(PhotosPicker)은 편집 화면 슬롯에 주입한다
+    // (App 은 PhotosUI 를 import 하지 않는다).
+    let photoClient = PhotoClientImpl()
     self._flow = State(initialValue: AppFlow(
       store: store,
+      photoClient: photoClient,
       today: { CalendarDay(Date(), in: .autoupdatingCurrent) }
     ))
   }
@@ -31,7 +36,7 @@ struct DDayApp: App {
             }
           }
         )) { session in
-          DDayEditorView(model: session.model)
+          DDayEditorView(model: session.model, photoPickerButton: PhotoPickerButton.init)
         }
     }
   }
