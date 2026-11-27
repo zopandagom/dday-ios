@@ -124,14 +124,16 @@ public extension Project {
     )
   }
 
-  /// Shared 모듈: 모듈 / Tests. 다른 모듈에 의존하지 않는다.
-  static func shared(_ shared: Shared) -> Project {
-    Project(
+  /// Shared 모듈: 모듈 / Tests. Client·Feature 에 의존하지 않고, 다른 Shared 는 `shared` 로만 의존한다 (예: DesignSystem → Core).
+  /// - Parameter shared: 이 모듈이 쓰는 다른 Shared 모듈. 모듈·Tests 에 연결된다.
+  static func shared(_ shared: Shared, shared dependencies: [Shared] = []) -> Project {
+    let dependencies = dependencies.map { TargetDependency.shared($0) }
+    return Project(
       name: shared.name,
       settings: .settings(base: Env.baseSettings),
       targets: [
-        .module(name: shared.name, sources: "Sources", dependencies: []),
-        .tests(name: shared.tests, dependencies: [.target(name: shared.name)]),
+        .module(name: shared.name, sources: "Sources", dependencies: dependencies),
+        .tests(name: shared.tests, dependencies: [.target(name: shared.name)] + dependencies),
       ]
     )
   }
