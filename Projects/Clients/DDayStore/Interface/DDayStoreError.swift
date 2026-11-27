@@ -1,6 +1,6 @@
 /// 디데이 저장소 에러. 프레임워크 에러가 새어 나가지 않도록 연관값을 두지 않는다 (원인 종류는 Impl 로그에만).
 public enum DDayStoreError: Error, Equatable, Sendable {
-  /// 그 id 의 디데이가 없다 (수정·삭제).
+  /// 그 id 의 디데이가 없다 (수정·삭제·사진 읽기).
   case notFound
   /// 같은 id 의 디데이가 이미 있다 (추가).
   case alreadyExists
