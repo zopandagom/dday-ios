@@ -34,6 +34,8 @@ public enum Feature: String, CaseIterable {
   case home = "Home"
   /// 디데이 추가·수정 화면.
   case dDayEditor = "DDayEditor"
+  /// 폴더 관리(목록·추가·수정·순서·삭제) 화면.
+  case folderManager = "FolderManager"
 
   public var name: String { "\(self.rawValue)Feature" }
   public var tests: String { "\(self.name)Tests" }
