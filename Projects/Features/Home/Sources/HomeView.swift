@@ -2,7 +2,7 @@ import Combine
 import SwiftUI
 
 /// 홈 목록. 상태를 읽어 그리기만 하고, 사용자 동작·앱 상태 변화는 Model 의 이벤트 메서드로 넘긴다.
-/// NavigationStack 은 App·Example 이 감싼다.
+/// NavigationStack 과 상세(`DDayDetailView`) `navigationDestination` 은 App·Example 이 붙인다.
 public struct HomeView: View {
   let model: HomeModel
   @Environment(\.scenePhase) private var scenePhase

@@ -18,6 +18,11 @@ enum HomeText {
   static var deleteFailedMessage: LocalizedStringResource { self.resource("home.deleteFailed.message") }
   static var confirm: LocalizedStringResource { self.resource("home.confirm") }
   static var dateUnavailable: LocalizedStringResource { self.resource("home.date.unavailable") }
+  static var detailEdit: LocalizedStringResource { self.resource("home.detail.edit") }
+  static var detailDate: LocalizedStringResource { self.resource("home.detail.date") }
+  static var detailFirstDate: LocalizedStringResource { self.resource("home.detail.firstDate") }
+  static var detailRepeat: LocalizedStringResource { self.resource("home.detail.repeat") }
+  static var detailCounting: LocalizedStringResource { self.resource("home.detail.counting") }
 
   /// 카드의 카운트 문구 ("D-3", "D-DAY", "D+10", "11일째").
   static func count(_ label: DDayCountLabel) -> LocalizedStringResource {
@@ -50,6 +55,28 @@ enum HomeText {
     case nil:
       self.localized(self.dateUnavailable, locale: locale)
     }
+  }
+
+  /// 상세의 반복 문구 (편집 화면의 `editor.repeat.*` 와 같은 값).
+  static func repeatText(_ rule: RepeatRule) -> LocalizedStringResource {
+    switch rule {
+    case .none: self.resource("home.detail.repeat.none")
+    case .yearly: self.resource("home.detail.repeat.yearly")
+    }
+  }
+
+  /// 상세의 세는 방식 문구 (편집 화면의 `editor.counting.*` 와 같은 값).
+  static func countingText(_ style: CountingStyle) -> LocalizedStringResource {
+    switch style {
+    case .dDay: self.resource("home.detail.counting.dDay")
+    case .dPlus: self.resource("home.detail.counting.dPlus")
+    case .dayOne: self.resource("home.detail.counting.dayOne")
+    }
+  }
+
+  /// 상세에서 음력 날짜 아래에 붙이는 양력 줄 ("양력 2027년 2월 7일"). 양력 형식은 `dateText` 의 양력과 같다.
+  static func detailSolarDate(_ day: CalendarDay, locale: Locale) -> String {
+    self.localized(self.resource("home.detail.solarDate \(self.solarText(day, locale: locale))"), locale: locale)
   }
 
   /// 그 날의 GMT 자정을 GMT 로 형식화한다. 변환과 형식화가 같은 고정 시간대라 기기 시간대와 무관하게 하루 밀리지 않는다.
