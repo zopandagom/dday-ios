@@ -206,6 +206,43 @@ struct DDayStoreClientImplTests {
     #expect(updated.createdAt == Date(timeIntervalSince1970: 10))
     #expect(try await store.fetchAll() == [updated])
   }
+
+  @Test(".replace 를 두 번 해도 압축본 행은 1개이고, .remove·삭제 뒤에는 0개다 (고아 없음)")
+  func photoRowsHaveNoOrphans() async throws {
+    let container = try DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true)
+    let store = DDayStoreClientImpl(openContainer: { container }, now: TestClock().next)
+    let photoRowCount = { try ModelContext(container).fetchCount(FetchDescriptor<DDayPhotoRecord>()) }
+
+    let removed = try await store.add(Sample.draft("지울 사진", photo: .replace(Sample.cardPhoto(seed: 1))))
+    _ = try await store.update(id: removed.id, Sample.draft(photo: .replace(Sample.cardPhoto(seed: 2))))
+    #expect(try photoRowCount() == 1)
+    _ = try await store.update(id: removed.id, Sample.draft(photo: .remove))
+    #expect(try photoRowCount() == 0)
+
+    let deleted = try await store.add(Sample.draft("지울 디데이", photo: .replace(Sample.cardPhoto(seed: 3))))
+    #expect(try photoRowCount() == 1)
+    try await store.delete(id: deleted.id)
+    #expect(try photoRowCount() == 0)
+  }
+
+  @Test("압축본 행의 사진 id 가 어긋나거나 행이 없으면 fetchPhoto 는 nil 이고 목록 썸네일은 그대로다")
+  func fetchPhotoChecksPairing() async throws {
+    let container = try DDayStoreClientImpl.makeContainer(isStoredInMemoryOnly: true)
+    let store = DDayStoreClientImpl(openContainer: { container }, now: TestClock().next)
+    let added = try await store.add(Sample.draft(photo: .replace(Sample.cardPhoto())))
+
+    let context = ModelContext(container)
+    let photoRecord = try #require(try context.fetch(FetchDescriptor<DDayPhotoRecord>()).first)
+    photoRecord.photoID = Sample.id(77)
+    try context.save()
+    #expect(try await store.fetchPhoto(id: added.id) == nil)
+    #expect(try await store.fetchAll().first?.photo == added.photo)
+
+    context.delete(photoRecord)
+    try context.save()
+    #expect(try await store.fetchPhoto(id: added.id) == nil)
+    #expect(try await store.fetchAll().first?.photo == added.photo)
+  }
 }
 
 struct DDayStoreClientFakeTests {

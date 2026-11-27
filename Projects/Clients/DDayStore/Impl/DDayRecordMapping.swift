@@ -36,6 +36,7 @@ struct DDayRecordFields: Hashable, Sendable {
 /// - 알림 날짜: 켜진 날짜는 `reminderDaysBefore`, 나머지 선택지는 `reminderDisabledDaysBefore` (각각 오름차순).
 ///   읽기는 켜진 필드만 본다.
 /// - 기념일 토글: `reminderEveryHundredDays`·`reminderAnniversaries` (그대로 옮긴다).
+/// - 사진: `photoID`·`photoThumbnail` 이 둘 다 있을 때만 사진이다. 사진 필드는 `DDayRecordFields` 에 넣지 않는다.
 enum DDayRecordMapping {
   static func fields(id: UUID, draft: DDayDraft, createdAt: Date, updatedAt: Date) -> DDayRecordFields {
     let dateKind: String
@@ -78,8 +79,14 @@ enum DDayRecordMapping {
     self.fields(id: dDay.id, draft: dDay.draft, createdAt: dDay.createdAt, updatedAt: dDay.updatedAt)
   }
 
-  /// 읽을 수 없는 값이면 nil.
-  static func dDay(from fields: DDayRecordFields) -> DDay? {
+  /// 행의 사진 필드 → 목록용 사진. 둘 다 있으면 사진, 하나라도 없으면 nil (행은 읽는다).
+  static func photo(id: UUID?, thumbnail: Data?) -> DDayPhoto? {
+    guard let id, let thumbnail else { return nil }
+    return DDayPhoto(id: id, thumbnail: thumbnail)
+  }
+
+  /// 읽을 수 없는 값이면 nil. 사진은 `photo(id:thumbnail:)` 로 따로 구해 넘긴다 (사진 필드는 `DDayRecordFields` 밖).
+  static func dDay(from fields: DDayRecordFields, photo: DDayPhoto? = nil) -> DDay? {
     guard let date = self.date(from: fields),
           let repeatRule = self.repeatRule(from: fields.repeatRule),
           let countingStyle = self.countingStyle(from: fields.countingStyle),
@@ -99,7 +106,8 @@ enum DDayRecordMapping {
         remindsAnniversaries: fields.reminderAnniversaries
       ),
       createdAt: fields.createdAt,
-      updatedAt: fields.updatedAt
+      updatedAt: fields.updatedAt,
+      photo: photo
     )
   }
 
