@@ -12,9 +12,9 @@ public enum Env {
     "UILaunchScreen": [:],
     "CFBundleLocalizations": ["ko", "en"],
   ]
-  /// Apple Developer Program 팀 ID. 실기기 빌드는 Xcode 자동 서명으로 프로비저닝한다.
-  /// 비어 있으면 시뮬레이터 빌드와 CI 만 된다. 실기기에서 돌리기 전에 채운다.
-  static let developmentTeam = ""
+  /// Apple Developer Program 팀 ID ("Joongwon Kim", 개인 팀). 실기기 빌드는 Xcode 자동 서명으로 프로비저닝한다.
+  /// `make build`/`make test` 와 CI 는 서명 없이 빌드하므로 이 값을 쓰지 않는다.
+  static let developmentTeam = "XHV4ZL5K8T"
 
   static let baseSettings: SettingsDictionary = [
     "SWIFT_VERSION": "6.0",
