@@ -1,7 +1,9 @@
 import Core
+import CoreGraphics
 import DDayStoreInterface
 import Foundation
 import Observation
+import PhotoInterface
 
 /// 디데이 추가·수정 화면의 상태와 로직.
 ///
@@ -12,27 +14,13 @@ import Observation
 /// - 알림창·확인창 버튼의 동작 이벤트는 창의 표시 상태를 조건으로 보지 않는다. 닫힘 이벤트(바인딩 set(false))가
 ///   버튼 동작보다 먼저 오든 나중에 오든 결과가 같다.
 /// - `onFinished` 는 모델당 정확히 한 번 부른다. 그 뒤 모든 이벤트는 무시한다.
+/// - 사진: 고르기(`photoPicked`) → 불러오기(`.loading`) → 자르기(`.cropping`) → 만들기(`.rendering`) → `.new`.
+///   늦게 끝난 사진 처리 결과는 요청 id 가 같고 `phase == .editing` 일 때만 반영한다. 사진 처리 중
+///   (`photoStep != .idle`)에는 저장·새로 저장·삭제를 시작하지 않고, [취소]·버리기·시트 닫기는 받는다
+///   (닫히면 사진 Task 를 취소하고 늦은 결과는 버린다). 처리 실패·취소면 기존 사진·입력을 그대로 둔다.
 @MainActor
 @Observable
 public final class DDayEditorModel: Identifiable {
-  public enum CalendarKind: Hashable, Sendable, CaseIterable {
-    case solar
-    case lunar
-  }
-
-  public enum Phase: Equatable, Sendable {
-    case editing
-    case saving
-    case deleting
-    case finished
-  }
-
-  public enum Alert: Equatable, Sendable {
-    case saveFailed
-    case notFoundOnSave
-    case deleteFailed
-  }
-
   /// 입력 그대로 (정리 전).
   public private(set) var title: String
   /// 늘 고를 수 있는 값.
@@ -59,21 +47,32 @@ public final class DDayEditorModel: Identifiable {
   public private(set) var isOriginalMissing = false
   /// 저장된 날짜를 고를 수 없어 맞췄다 (안내 문구). 받아들인 날짜 이벤트가 끈다.
   public private(set) var isDateAdjusted = false
+  /// 사진 상태. 바꾸는 길은 `EditorPhotoState.apply(_:)` 의 전이뿐이다 (이 파일의 "사진 상태 전이 통로").
+  public private(set) var photoState: EditorPhotoState
+  /// 수정 저장이 `.notFound` 를 받아 저장된 사진을 잃었다 (원래 디데이와 함께 압축본도 지워졌다). 한 번 true 면 그대로.
+  public private(set) var isStoredPhotoLost = false
 
   @ObservationIgnored private let mode: DDayEditorMode
   @ObservationIgnored private let initialDraft: DDayDraft
   @ObservationIgnored private let store: any DDayStoreClient
   @ObservationIgnored private let onFinished: @MainActor (DDayEditorOutcome) -> Void
+  @ObservationIgnored let photoClient: any PhotoClient
+  /// 수정 모드의 처음 사진 (`photoChange` 가 지움을 `.remove` 로 보낼지 정한다).
+  @ObservationIgnored let originalPhoto: DDayPhoto?
+  /// 진행 중인 사진 처리 Task (닫기·불러오기 취소가 취소한다). 요청 id 는 `photoState` 가 갖는다.
+  @ObservationIgnored private var photoTask: Task<Void, Never>?
 
   /// - Parameter today: 추가 모드의 시작 날짜 (양력 지원 범위로 맞춘다). 수정 모드는 쓰지 않는다.
   public init(
     mode: DDayEditorMode,
     store: any DDayStoreClient,
+    photoClient: any PhotoClient,
     today: CalendarDay,
     onFinished: @escaping @MainActor (DDayEditorOutcome) -> Void
   ) {
     self.mode = mode
     self.store = store
+    self.photoClient = photoClient
     self.onFinished = onFinished
     switch mode {
     case .add:
@@ -89,6 +88,8 @@ public final class DDayEditorModel: Identifiable {
       self.remindsEveryHundredDays = reminder.remindsEveryHundredDays
       self.remindsAnniversaries = reminder.remindsAnniversaries
       self.isEditingExisting = false
+      self.photoState = EditorPhotoState(photo: .none)
+      self.originalPhoto = nil
       self.initialDraft = DDayDraft(title: "", schedule: DDaySchedule(date: date), reminder: reminder)
     case let .edit(dDay):
       let (date, isAdjusted) = Self.selectable(dDay.schedule.date)
@@ -103,6 +104,8 @@ public final class DDayEditorModel: Identifiable {
       self.remindsAnniversaries = dDay.reminder.remindsAnniversaries
       self.isEditingExisting = true
       self.isDateAdjusted = isAdjusted
+      self.photoState = EditorPhotoState(photo: dDay.photo.map { .stored($0) } ?? .none)
+      self.originalPhoto = dDay.photo
       // 제목만 정리하고 날짜는 맞추기 전 저장값: 맞췄으면 hasChanges 가 true 라 말없이 덮지 않는다.
       self.initialDraft = DDayDraft(title: Self.trimmed(dDay.title), schedule: dDay.schedule, reminder: dDay.reminder)
     }
@@ -112,12 +115,13 @@ public final class DDayEditorModel: Identifiable {
   var isAddMode: Bool { self.mode == .add }
 
   public var hasChanges: Bool { self.draft != self.initialDraft }
-  /// 끌어내려 닫기를 막는다 (`interactiveDismissDisabled`).
-  public var isDismissDisabled: Bool { self.isBusy || self.hasChanges }
+  /// 끌어내려 닫기를 막는다 (`interactiveDismissDisabled`). 사진 처리 중에도 막는다.
+  public var isDismissDisabled: Bool { self.isBusy || self.hasChanges || self.isPhotoBusy }
 }
 
 // 상태를 바꾸는 이벤트는 `private(set)` 세터를 쓰므로 이 파일의 extension 에 둔다.
-// 음력 선택 이벤트는 `changeLunar` 만 부르므로 `DDayEditorModel+Lunar.swift` 에 둔다.
+// 음력 선택 이벤트는 `changeLunar` 만 부르므로 `DDayEditorModel+Lunar.swift` 에, 사진 이벤트는 아래 "사진 상태 전이
+// 통로"(전이만 받고 편집 중일 때만 적용)만 부르므로 `DDayEditorModel+Photo.swift` 에 둔다. 중첩 타입은 `DDayEditorModel+Types.swift`.
 
 public extension DDayEditorModel {
   // MARK: - 입력 이벤트
@@ -229,8 +233,9 @@ public extension DDayEditorModel {
   // MARK: - 삭제
 
   /// 수정 중일 때만 삭제 확인창을 띄운다.
+  /// 사진 처리 중에는 무시한다 (불러오는 중 삭제가 실패해 돌아오면 `.loading` 에 갇히지 않게).
   func deleteButtonTapped() {
-    guard self.phase == .editing, self.isEditingExisting else { return }
+    guard self.phase == .editing, self.photoStep == .idle, self.isEditingExisting else { return }
     self.isDeleteConfirmationPresented = true
   }
 
@@ -238,7 +243,11 @@ public extension DDayEditorModel {
   @discardableResult
   func deleteConfirmed() -> Task<Void, Never>? {
     self.isDeleteConfirmationPresented = false
-    guard self.phase == .editing, self.isEditingExisting, case let .edit(original) = self.mode else { return nil }
+    guard self.phase == .editing, self.photoStep == .idle, self.isEditingExisting,
+          case let .edit(original) = self.mode
+    else {
+      return nil
+    }
     self.phase = .deleting
     return Task { await self.finishDelete(id: original.id) }
   }
@@ -283,6 +292,43 @@ public extension DDayEditorModel {
 }
 
 extension DDayEditorModel {
+  // MARK: - 사진 상태 전이 통로
+
+  /// 사진 이벤트(`+Photo.swift`)의 통로: 이벤트 전이만 받아 편집 중일 때만 적용하고 받았는지 돌려준다.
+  @discardableResult
+  func applyPhotoEvent(_ event: EditorPhotoState.EventTransition) -> Bool {
+    self.applyPhotoTransition(event.transition)
+  }
+
+  /// 시작 전이를 받았으면 `work`(시작 뒤 상태를 받는다)의 결과 전이를 적용하는 Task, 아니면 nil. 결과도 편집 중·같은 요청일 때만.
+  func startPhotoWork(
+    _ start: EditorPhotoState.StartTransition,
+    work: @escaping @MainActor @Sendable (EditorPhotoState) async -> EditorPhotoState.FinishTransition
+  ) -> Task<Void, Never>? {
+    guard self.applyPhotoTransition(start.transition) else { return nil }
+    let state = self.photoState
+    let task = Task { _ = await self.applyPhotoTransition(work(state).transition) }
+    self.photoTask = task
+    return task
+  }
+
+  /// 편집 중이면 적용한다. 받은 `.cancelLoad` 는 불러오기 Task 를 취소한다.
+  @discardableResult
+  private func applyPhotoTransition(_ transition: EditorPhotoState.Transition) -> Bool {
+    guard self.phase == .editing, self.photoState.apply(transition) else { return false }
+    if case .cancelLoad = transition {
+      self.cancelPhotoTask()
+    }
+    return true
+  }
+
+  private func cancelPhotoTask() {
+    self.photoTask?.cancel()
+    self.photoTask = nil
+  }
+}
+
+extension DDayEditorModel {
   // MARK: - Private
 
   private var closeOutcome: DDayEditorOutcome {
@@ -317,6 +363,10 @@ extension DDayEditorModel {
       self.phase = .editing
       if error == .notFound, updateID != nil {
         self.isOriginalMissing = true
+        // 원래 디데이와 함께 압축본도 지워졌다. 미리보기와 "새로 저장" 결과를 맞춘다 (새로 고른 사진은 그대로).
+        if self.photoState.apply(.dropStoredPhoto) {
+          self.isStoredPhotoLost = true
+        }
         self.alert = .notFoundOnSave
       } else {
         self.alert = .saveFailed
@@ -339,9 +389,12 @@ extension DDayEditorModel {
     }
   }
 
+  /// 닫히면 진행 중인 사진 처리를 취소한다 (늦은 결과는 `phase == .finished` 라 버린다).
   private func finish(_ outcome: DDayEditorOutcome) {
     guard self.phase != .finished else { return }
     self.phase = .finished
+    self.photoState.apply(.endRequest)
+    self.cancelPhotoTask()
     self.onFinished(outcome)
   }
 }

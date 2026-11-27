@@ -1,6 +1,7 @@
 import Core
 import DDayStoreInterface
 import Foundation
+import PhotoInterface
 
 public extension DDayEditorModel {
   // MARK: - 파생 값
@@ -14,12 +15,62 @@ public extension DDayEditorModel {
 
   /// 앞뒤 공백을 정리하면 빈 제목.
   var isTitleEmpty: Bool { Self.trimmed(self.title).isEmpty }
-  var canSave: Bool { !self.isTitleEmpty && self.phase == .editing }
+  /// 사진 처리 중에는 저장하지 않는다.
+  var canSave: Bool { !self.isTitleEmpty && self.phase == .editing && self.photoStep == .idle }
   var isBusy: Bool { self.phase == .saving || self.phase == .deleting }
   /// 기념일 알림 토글은 D+·1일째 방식일 때만 보인다 (값은 늘 저장).
   var showsMilestoneReminders: Bool { self.countingStyle != .dDay }
   /// 알림 날짜 줄의 표시 순서: 30일 전 → 7일 전 → 2일 전 → 당일.
   static let reminderDayChoices: [Int] = ReminderSettings.daysBeforeChoices.reversed()
+
+  // MARK: - 사진
+
+  /// 추가: `.none`, 수정: 저장된 사진이 있으면 `.stored`.
+  var photo: EditorPhoto { self.photoState.photo }
+  var photoStep: PhotoStep { self.photoState.step }
+  var photoNotice: PhotoNotice? { self.photoState.notice }
+
+  /// 저장할 사진 변경. none: 처음 사진이 있었으면 `.remove` 아니면 `.keep` / stored: `.keep` / new: `.replace`.
+  var photoChange: DDayPhotoChange {
+    switch self.photo {
+    case .none: self.originalPhoto == nil ? .keep : .remove
+    case .stored: .keep
+    case let .new(cardPhoto): .replace(cardPhoto)
+    }
+  }
+
+  /// 미리보기 썸네일 JPEG. 사진이 없으면 nil.
+  var photoPreviewThumbnail: Data? {
+    switch self.photo {
+    case .none: nil
+    case let .stored(photo): photo.thumbnail
+    case let .new(cardPhoto): cardPhoto.thumbnail
+    }
+  }
+
+  var hasPhoto: Bool { self.photo != .none }
+  var isPhotoBusy: Bool { self.photoStep != .idle }
+  var canPickPhoto: Bool { self.phase == .editing && self.photoState.isIdle }
+
+  /// 자르기·만들기 중인 작업 이미지.
+  var cropImage: PhotoWorkingImage? {
+    switch self.photoStep {
+    case let .cropping(image), let .rendering(image): image
+    case .idle, .loading: nil
+    }
+  }
+
+  /// 자르기 화면 push. 버리기 확인창이 떠 있는 동안은 미룬다.
+  var isCropPresented: Bool { self.cropImage != nil && !self.isDiscardConfirmationPresented }
+  var isRendering: Bool {
+    if case .rendering = self.photoStep {
+      return true
+    }
+    return false
+  }
+
+  /// "이미 지워진 디데이" 알림 본문을 사진 문구로 할지: 저장된 사진을 잃었고 지금도 사진이 없을 때만.
+  var isPhotoLostMessageShown: Bool { self.isStoredPhotoLost && self.photo == .none }
 
   /// 저장할 값: 제목 정리, 알림은 `ReminderSettings` 가 정규화.
   internal var draft: DDayDraft {
@@ -32,7 +83,8 @@ public extension DDayEditorModel {
         time: self.reminderTime,
         remindsEveryHundredDays: self.remindsEveryHundredDays,
         remindsAnniversaries: self.remindsAnniversaries
-      )
+      ),
+      photo: self.photoChange
     )
   }
 
