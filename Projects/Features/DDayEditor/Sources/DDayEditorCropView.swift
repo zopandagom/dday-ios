@@ -5,18 +5,36 @@ import SwiftUI
 /// 3:2 자르기 화면 (편집 시트 안 내비게이션 push). 끌어서 옮기고 두 손가락으로 확대한다.
 /// 제스처 중 영역은 `PhotoCropGeometry.crop(zoom:center:)` 로 계속 클램프하고, 끝나면 확대·중심을 View 일시 상태에 둔다.
 /// 끌기와 확대는 한 제스처(`simultaneously`)의 한 값(`LiveGesture`)으로 그리고 확정한다. 두 손가락을 함께 떼도
-/// `onEnded` 순서에 기대지 않고, 손을 떼기 직전에 보인 영역 그대로 확정된다.
+/// `onEnded` 순서에 기대지 않고, 손을 떼기 직전에 보인 영역 그대로 확정된다. 한쪽 제스처가 먼저 끝나 그 값이 비어도
+/// (한 손가락을 떼고 계속 끌기) 그 제스처의 마지막 값을 유지한다.
 /// [완료] 는 그 영역을 Model 의 `cropConfirmed(_:)` 로 넘긴다. 만드는 중에는 버튼·제스처가 막힌다.
 struct DDayEditorCropView: View {
   let model: DDayEditorModel
   @State private var zoom: Double = 1
   @State private var center = CGPoint(x: 0.5, y: 0.5)
   @GestureState private var live = LiveGesture()
+  /// `updating` 이 마지막으로 합친 값. `onEnded` 가 확정에 쓴다 (`@GestureState` 초기화 시점에 기대지 않으려고).
+  /// 화면에 쓰지 않는 값이라 관찰하지 않는 참조 상자에 둔다. 취소된 제스처의 값이 남아도 다음 제스처의 첫
+  /// `updating` 이 덮는다 (`@GestureState` 가 초기값에서 다시 시작하므로).
+  @State private var lastLive = LiveGestureBox()
 
   /// 진행 중인 끌기 거리(포인트)와 확대 배율. 제스처가 끝나면 초기값으로 돌아간다.
   private struct LiveGesture: Equatable {
     var translation: CGSize = .zero
     var magnification: Double = 1
+
+    /// 이번 값으로 바꾼다. 한쪽 제스처가 끝나 값이 비었으면 그 제스처는 이전 값(`previous`)을 유지한다.
+    static func merged(_ value: SimultaneousGesture<DragGesture, MagnifyGesture>.Value, previous: Self) -> Self {
+      Self(
+        translation: value.first?.translation ?? previous.translation,
+        magnification: value.second.map { Double($0.magnification) } ?? previous.magnification
+      )
+    }
+  }
+
+  @MainActor
+  private final class LiveGestureBox {
+    var value = LiveGesture()
   }
 
   var body: some View {
@@ -102,22 +120,17 @@ struct DDayEditorCropView: View {
     DragGesture()
       .simultaneously(with: MagnifyGesture())
       .updating(self.$live) { value, state, _ in
-        state = Self.liveGesture(value)
+        state = LiveGesture.merged(value, previous: state)
+        self.lastLive.value = state
       }
       .onEnded { value in
         // 화면(`liveCrop`)과 같은 값·같은 계산으로 확정한다.
-        let live = Self.liveGesture(value)
+        let live = LiveGesture.merged(value, previous: self.lastLive.value)
+        self.lastLive.value = LiveGesture()
         let crop = self.crop(geometry, frameWidth: frameWidth, live: live)
         self.zoom = min(max(self.zoom * live.magnification, 1), PhotoCropGeometry.maxZoom)
         self.center = CGPoint(x: crop.midX, y: crop.midY)
       }
-  }
-
-  private static func liveGesture(_ value: SimultaneousGesture<DragGesture, MagnifyGesture>.Value) -> LiveGesture {
-    LiveGesture(
-      translation: value.first?.translation ?? .zero,
-      magnification: Double(value.second?.magnification ?? 1)
-    )
   }
 
   /// 제스처 중의 영역 (확정 값 + 진행 중인 이동·확대).
