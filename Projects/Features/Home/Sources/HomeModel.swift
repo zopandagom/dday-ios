@@ -25,6 +25,9 @@ public enum HomeFilter: Hashable, Sendable {
 /// - 삭제는 항목을 바로 숨긴 뒤 저장소에서 지운다. 실패하면 원래 자리로 돌려놓고 알림창을 띄운다.
 /// - 필터·폴더 해석은 `rebuild()` 에서만 한다. 편집 결과로 폴더가 바뀐 디데이는 같은 차례에 필터 결과에서 빠지거나 들어온다.
 ///   [+] 는 지금 필터가 폴더면 그 폴더 id 를 넘긴다 (추가 모드 기본 폴더).
+/// - 폴더 관리 결과: [폴더 관리](칩·툴바)는 목록이 있을 때만 App 에 알리고(`onFolderManagerTapped`), App 이 관리 화면에
+///   `folders`·`folderDDayCounts` 를 넘긴다. 바뀐 폴더 목록은 `foldersChanged(_:)`, 함께 지운 디데이는 `dDayDeleted(id:)` 로
+///   다시 읽지 않고 반영한다 (고른 칩 폴더가 지워지면 전체로).
 @MainActor
 @Observable
 public final class HomeModel {
@@ -61,17 +64,33 @@ public final class HomeModel {
   @ObservationIgnored private let onAddTapped: @MainActor (_ folderID: UUID?) -> Void
   /// 카드 탭. App 이 상세를 연다.
   @ObservationIgnored private let onDDaySelected: @MainActor (DDay) -> Void
+  /// [폴더 관리]. App 이 관리 화면을 연다.
+  @ObservationIgnored private let onFolderManagerTapped: @MainActor () -> Void
 
   public init(
     store: any DDayStoreClient,
     today: @escaping @MainActor () -> CalendarDay,
     onAddTapped: @escaping @MainActor (_ folderID: UUID?) -> Void,
-    onDDaySelected: @escaping @MainActor (DDay) -> Void
+    onDDaySelected: @escaping @MainActor (DDay) -> Void,
+    onFolderManagerTapped: @escaping @MainActor () -> Void = {}
   ) {
     self.store = store
     self.today = today
     self.onAddTapped = onAddTapped
     self.onDDaySelected = onDDaySelected
+    self.onFolderManagerTapped = onFolderManagerTapped
+  }
+
+  /// 폴더 id → 안의 디데이 수. 삭제 중이 아닌 디데이 중 지금 `folders` 에 있는 폴더를 가리키는 것만 센다
+  /// (없는 폴더를 가리키는 디데이는 미분류라 세지 않는다). App 이 관리 화면을 열 때 넘긴다.
+  public var folderDDayCounts: [UUID: Int] {
+    let folderIDs = Set(self.folders.map(\.id))
+    var counts: [UUID: Int] = [:]
+    for dDay in self.dDays where !self.deletingIDs.contains(dDay.id) {
+      guard let folderID = dDay.folderID, folderIDs.contains(folderID) else { continue }
+      counts[folderID, default: 0] += 1
+    }
+    return counts
   }
 
   // MARK: - Events
@@ -114,6 +133,22 @@ public final class HomeModel {
       return
     }
     self.filter = filter
+    self.rebuild()
+  }
+
+  /// [폴더 관리] (칩 줄 끝 칩·툴바 버튼). 목록이 있을 때만 App 에 알린다. 불러오는 중·실패면 무시한다.
+  public func folderManagerButtonTapped() {
+    guard case .loaded = self.content else { return }
+    self.onFolderManagerTapped()
+  }
+
+  /// 폴더 관리 결과로 폴더 목록이 바뀜 (추가·수정·순서·삭제). 다시 읽지 않고 같은 차례에 칩·필터·카드에 반영한다:
+  /// 이름·색이 바뀐 폴더는 카드·칩에, 지운 폴더를 가리키던 디데이는 미분류로 보이고, 고른 칩 폴더가 지워지면 전체로.
+  /// 목록이 없으면(불러오는 중·실패) 무시한다: 관리 화면은 `.loaded` 에서만 열리고 `.loaded` 는 벗어나지 않아
+  /// 정상 흐름에서 오지 않는다 (오더라도 다음 불러오기가 저장소의 최신 폴더를 읽는다).
+  public func foldersChanged(_ folders: [DDayFolder]) {
+    guard case .loaded = self.content else { return }
+    self.folders = folders
     self.rebuild()
   }
 
@@ -275,7 +310,7 @@ public final class HomeModel {
   /// dDays 순서가 그대로라 삭제 실패로 돌아온 항목은 원래 자리에 놓인다.
   private func rebuild() {
     guard let day = self.currentDay else { return }
-    // 고른 폴더가 목록에서 사라지면 전체로. PR② 대비, 지금은 닿지 않음 (폴더 목록이 바뀌는 경로가 없다).
+    // 고른 폴더가 목록에서 사라지면(폴더 관리에서 지운 폴더) 전체로.
     if case let .folder(id) = self.filter, !self.folders.contains(where: { $0.id == id }) {
       self.filter = .all
     }

@@ -99,6 +99,8 @@ final class CallbackRecorder {
   /// [+] 가 넘긴 추가 기본 폴더 (부른 순서).
   var addFolderIDs: [UUID?] = []
   var selected: [DDay] = []
+  /// [폴더 관리] 콜백 횟수.
+  var folderManagerTapCount = 0
 }
 
 extension HomeModel.Content {

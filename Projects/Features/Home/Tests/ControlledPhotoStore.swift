@@ -65,6 +65,22 @@ final class ControlledPhotoStore: DDayStoreClient {
     try await self.base.fetchFolders()
   }
 
+  func addFolder(_ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.addFolder(draft)
+  }
+
+  func updateFolder(id: UUID, _ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.updateFolder(id: id, draft)
+  }
+
+  func moveFolders(_ orderedIDs: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.moveFolders(orderedIDs)
+  }
+
+  func deleteFolder(id: UUID, dDays: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
+    try await self.base.deleteFolder(id: id, dDays: dDays)
+  }
+
   // MARK: - 테스트 조작
 
   /// 멈춘 `fetchPhoto` 중 `index` 번째(시작 순서, 0 이 가장 먼저)를 `result` 로 끝낸다.

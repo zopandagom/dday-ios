@@ -25,6 +25,7 @@ enum HomeText {
   static var detailCounting: LocalizedStringResource { self.resource("home.detail.counting") }
   static var detailFolder: LocalizedStringResource { self.resource("home.detail.folder") }
   static var filterAll: LocalizedStringResource { self.resource("home.filter.all") }
+  static var folderManager: LocalizedStringResource { self.resource("home.folderManager") }
   static var filterEmptyFolderTitle: LocalizedStringResource { self.resource("home.filterEmpty.folderTitle") }
   static var filterEmptyUnfiledTitle: LocalizedStringResource { self.resource("home.filterEmpty.unfiledTitle") }
   static var filterEmptyFolderMessage: LocalizedStringResource { self.resource("home.filterEmpty.folderMessage") }

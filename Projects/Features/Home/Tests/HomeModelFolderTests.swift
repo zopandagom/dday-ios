@@ -5,7 +5,7 @@ import Foundation
 import Testing
 @testable import HomeFeature
 
-/// 폴더 불러오기·칩 필터·[+] 기본 폴더.
+/// 폴더 불러오기·칩 필터·[+] 기본 폴더. 폴더 관리는 HomeModelFolderManagerTests.swift.
 extension HomeModelTests {
   /// 폴더가 섞인 샘플. 전체 정렬: 2, 3, 1, 4, 5.
   /// 생일: 1, 5 / 가족: 2 / 연인: 없음 / 미분류: 3(nil), 4(없는 폴더).
