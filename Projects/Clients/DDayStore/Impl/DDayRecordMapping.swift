@@ -22,6 +22,8 @@ struct DDayRecordFields: Hashable, Sendable {
   var reminderMinute: Int
   var createdAt: Date
   var updatedAt: Date
+  /// 폴더 id. 쓰기는 그대로 옮기고, 읽기는 `dDay(from:photo:folderIDs:)` 가 정규화한다.
+  var folderID: UUID?
 }
 
 /// 저장값 ↔ Core 값 변환.
@@ -37,6 +39,8 @@ struct DDayRecordFields: Hashable, Sendable {
 ///   읽기는 켜진 필드만 본다.
 /// - 기념일 토글: `reminderEveryHundredDays`·`reminderAnniversaries` (그대로 옮긴다).
 /// - 사진: `photoID`·`photoThumbnail` 이 둘 다 있을 때만 사진이다. 사진 필드는 `DDayRecordFields` 에 넣지 않는다.
+/// - 폴더: `folderID` 는 읽을 수 있는 폴더 id 집합에 있을 때만 그대로, 아니면 미분류(nil). 행은 읽는다.
+///   쓰기는 draft 의 값을 그대로 옮긴다 (없는 폴더 id 를 nil 로 바꾸는 정규화는 Impl 이 쓰기 전에 한다).
 enum DDayRecordMapping {
   static func fields(id: UUID, draft: DDayDraft, createdAt: Date, updatedAt: Date) -> DDayRecordFields {
     let dateKind: String
@@ -71,7 +75,8 @@ enum DDayRecordMapping {
       reminderHour: draft.reminder.time.hour,
       reminderMinute: draft.reminder.time.minute,
       createdAt: createdAt,
-      updatedAt: updatedAt
+      updatedAt: updatedAt,
+      folderID: draft.folderID
     )
   }
 
@@ -86,7 +91,9 @@ enum DDayRecordMapping {
   }
 
   /// 읽을 수 없는 값이면 nil. 사진은 `photo(id:thumbnail:)` 로 따로 구해 넘긴다 (사진 필드는 `DDayRecordFields` 밖).
-  static func dDay(from fields: DDayRecordFields, photo: DDayPhoto? = nil) -> DDay? {
+  /// - Parameter folderIDs: 읽을 수 있는 폴더 id 전부. `fields.folderID` 가 여기 없으면 미분류(nil)로 읽는다.
+  ///   빼먹지 않도록 기본값을 두지 않는다.
+  static func dDay(from fields: DDayRecordFields, photo: DDayPhoto? = nil, folderIDs: Set<UUID>) -> DDay? {
     guard let date = self.date(from: fields),
           let repeatRule = self.repeatRule(from: fields.repeatRule),
           let countingStyle = self.countingStyle(from: fields.countingStyle),
@@ -107,7 +114,8 @@ enum DDayRecordMapping {
       ),
       createdAt: fields.createdAt,
       updatedAt: fields.updatedAt,
-      photo: photo
+      photo: photo,
+      folderID: fields.folderID.flatMap { folderIDs.contains($0) ? $0 : nil }
     )
   }
 
