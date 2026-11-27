@@ -29,6 +29,10 @@ final class DeleteFailingStore: DDayStoreClient {
   func fetchPhoto(id: UUID) async throws(DDayStoreError) -> Data? {
     try await self.base.fetchPhoto(id: id)
   }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.fetchFolders()
+  }
 }
 
 /// 쓰기마다 2초 기다린 뒤 Fake 에 맡기는 저장소 (중복 탭·끌어내리기 막힘 확인).
@@ -60,6 +64,10 @@ final class SlowStore: DDayStoreClient {
 
   func fetchPhoto(id: UUID) async throws(DDayStoreError) -> Data? {
     try await self.base.fetchPhoto(id: id)
+  }
+
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.fetchFolders()
   }
 
   private static func wait() async {

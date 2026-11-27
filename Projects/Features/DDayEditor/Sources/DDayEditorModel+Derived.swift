@@ -6,6 +6,28 @@ import PhotoInterface
 public extension DDayEditorModel {
   // MARK: - 파생 값
 
+  /// 화면 제목용: 추가 모드로 열었는지.
+  internal var isAddMode: Bool { self.mode == .add }
+
+  var hasChanges: Bool { self.draft != self.initialDraft }
+  /// 끌어내려 닫기를 막는다 (`interactiveDismissDisabled`). 사진 처리 중에도 막는다.
+  var isDismissDisabled: Bool { self.isBusy || self.hasChanges || self.isPhotoBusy }
+
+  /// 닫을 때 알릴 결과: 원래 디데이가 없다고 알았으면 지워진 것으로, 아니면 취소.
+  internal var closeOutcome: DDayEditorOutcome {
+    if self.isOriginalMissing, case let .edit(original) = self.mode {
+      return .deleted(original.id)
+    }
+    return .cancelled
+  }
+
+  // MARK: - 폴더
+
+  /// 고를 수 있는 폴더 (열 때 받은 값, 바뀌지 않는다).
+  var folders: [DDayFolder] { self.folderSelection.folders }
+  /// 고른 폴더. nil 이면 미분류. 늘 nil 이거나 `folders` 안의 id.
+  var folderID: UUID? { self.folderSelection.folderID }
+
   var calendarKind: CalendarKind {
     switch self.date {
     case .solar: .solar
@@ -84,7 +106,8 @@ public extension DDayEditorModel {
         remindsEveryHundredDays: self.remindsEveryHundredDays,
         remindsAnniversaries: self.remindsAnniversaries
       ),
-      photo: self.photoChange
+      photo: self.photoChange,
+      folderID: self.folderSelection.folderID
     )
   }
 

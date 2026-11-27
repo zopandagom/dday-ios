@@ -9,6 +9,7 @@ import SwiftUI
 /// App 없이 편집 화면만 띄우는 데모 앱. 시나리오를 고르면 App 과 같은 방식(sheet(item:))으로 시트를 띄우고,
 /// 끝나면 마지막 결과와 Fake 저장소의 디데이 수를 목록 위에 보인다. 끌어내려 닫은 뒤 늦게 끝난 옛 편집의 결과도
 /// 결과 줄에 보이고, 그 사이 새로 연 시트는 닫지 않는다. 사진 선택 버튼은 Fake(`PhotoPickerButtonFake`)를 주입한다.
+/// 폴더 목록·추가 기본 폴더는 시나리오가 정하고(App 이 홈의 목록·칩을 넘기는 것과 같다), 결과 줄에 저장된 폴더를 보인다.
 @main
 struct DDayEditorFeatureExampleApp: App {
   @State private var state = ExampleState()
@@ -71,6 +72,8 @@ final class ExampleState {
       store: setup.store,
       photoClient: setup.photoClient,
       today: CalendarDay(Date(), in: .autoupdatingCurrent),
+      folders: setup.folders,
+      defaultFolderID: setup.defaultFolderID,
       onFinished: { [weak self] outcome in
         self?.finished(outcome, sessionID: id, fake: fake)
       }
@@ -93,13 +96,24 @@ final class ExampleState {
       self.session = nil
     }
     self.lastOutcome = switch outcome {
-    case let .saved(dDay): "saved: \(dDay.title) (\(dDay.id.uuidString.prefix(8)))"
+    case let .saved(dDay):
+      "saved: \(dDay.title) (\(dDay.id.uuidString.prefix(8))), 폴더 \(Self.folderText(dDay.folderID, in: fake))"
     case let .savedAsNew(dDay, original):
-      "savedAsNew: \(dDay.title) (\(dDay.id.uuidString.prefix(8))), replacing \(original.uuidString.prefix(8))"
+      "savedAsNew: \(dDay.title) (\(dDay.id.uuidString.prefix(8))), replacing \(original.uuidString.prefix(8)), "
+        + "폴더 \(Self.folderText(dDay.folderID, in: fake))"
     case let .deleted(id): "deleted: \(id.uuidString.prefix(8))"
     case .cancelled: "cancelled"
     }
     self.storedCount = fake.dDays.count
     self.storedPhotoCount = fake.photoImages.count
+  }
+
+  /// 결과 줄의 폴더 (개발용 문구라 카탈로그 밖): 기본 폴더 키·사용자 이름, 없으면 "미분류".
+  private static func folderText(_ folderID: UUID?, in fake: DDayStoreClientFake) -> String {
+    switch fake.folders.first(where: { $0.id == folderID })?.name {
+    case let .system(folder): folder.rawValue
+    case let .custom(name): name
+    case nil: "미분류"
+    }
   }
 }

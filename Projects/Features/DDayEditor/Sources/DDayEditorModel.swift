@@ -51,9 +51,11 @@ public final class DDayEditorModel: Identifiable {
   public private(set) var photoState: EditorPhotoState
   /// 수정 저장이 `.notFound` 를 받아 저장된 사진을 잃었다 (원래 디데이와 함께 압축본도 지워졌다). 한 번 true 면 그대로.
   public private(set) var isStoredPhotoLost = false
+  /// 폴더 선택 (열 때 받은 목록에서 고른다, 저장소에서 읽지 않는다). 바꾸는 길은 `folderChanged(_:)` 뿐이다.
+  public private(set) var folderSelection: EditorFolderSelection
 
-  @ObservationIgnored private let mode: DDayEditorMode
-  @ObservationIgnored private let initialDraft: DDayDraft
+  @ObservationIgnored let mode: DDayEditorMode
+  @ObservationIgnored let initialDraft: DDayDraft
   @ObservationIgnored private let store: any DDayStoreClient
   @ObservationIgnored private let onFinished: @MainActor (DDayEditorOutcome) -> Void
   @ObservationIgnored let photoClient: any PhotoClient
@@ -62,18 +64,23 @@ public final class DDayEditorModel: Identifiable {
   /// 진행 중인 사진 처리 Task (닫기·불러오기 취소가 취소한다). 요청 id 는 `photoState` 가 갖는다.
   @ObservationIgnored private var photoTask: Task<Void, Never>?
 
-  /// - Parameter today: 추가 모드의 시작 날짜 (양력 지원 범위로 맞춘다). 수정 모드는 쓰지 않는다.
+  /// - Parameter today: 추가 모드의 시작 날짜 (양력 지원 범위로 맞춘다). 수정 모드는 쓰지 않는다. 폴더 인자는 `EditorFolderSelection`.
   public init(
     mode: DDayEditorMode,
     store: any DDayStoreClient,
     photoClient: any PhotoClient,
     today: CalendarDay,
+    folders: [DDayFolder] = [],
+    defaultFolderID: UUID? = nil,
     onFinished: @escaping @MainActor (DDayEditorOutcome) -> Void
   ) {
     self.mode = mode
     self.store = store
     self.photoClient = photoClient
     self.onFinished = onFinished
+    let folderSelection = EditorFolderSelection(mode: mode, folders: folders, defaultFolderID: defaultFolderID)
+    self.folderSelection = folderSelection
+    var initialDraft: DDayDraft
     switch mode {
     case .add:
       let reminder = ReminderSettings.default
@@ -90,7 +97,7 @@ public final class DDayEditorModel: Identifiable {
       self.isEditingExisting = false
       self.photoState = EditorPhotoState(photo: .none)
       self.originalPhoto = nil
-      self.initialDraft = DDayDraft(title: "", schedule: DDaySchedule(date: date), reminder: reminder)
+      initialDraft = DDayDraft(title: "", schedule: DDaySchedule(date: date), reminder: reminder)
     case let .edit(dDay):
       let (date, isAdjusted) = Self.selectable(dDay.schedule.date)
       self.title = dDay.title
@@ -107,16 +114,11 @@ public final class DDayEditorModel: Identifiable {
       self.photoState = EditorPhotoState(photo: dDay.photo.map { .stored($0) } ?? .none)
       self.originalPhoto = dDay.photo
       // 제목만 정리하고 날짜는 맞추기 전 저장값: 맞췄으면 hasChanges 가 true 라 말없이 덮지 않는다.
-      self.initialDraft = DDayDraft(title: Self.trimmed(dDay.title), schedule: dDay.schedule, reminder: dDay.reminder)
+      initialDraft = DDayDraft(title: Self.trimmed(dDay.title), schedule: dDay.schedule, reminder: dDay.reminder)
     }
+    initialDraft.folderID = folderSelection.folderID
+    self.initialDraft = initialDraft
   }
-
-  /// 화면 제목용: 추가 모드로 열었는지.
-  var isAddMode: Bool { self.mode == .add }
-
-  public var hasChanges: Bool { self.draft != self.initialDraft }
-  /// 끌어내려 닫기를 막는다 (`interactiveDismissDisabled`). 사진 처리 중에도 막는다.
-  public var isDismissDisabled: Bool { self.isBusy || self.hasChanges || self.isPhotoBusy }
 }
 
 // 상태를 바꾸는 이벤트는 `private(set)` 세터를 쓰므로 이 파일의 extension 에 둔다.
@@ -198,6 +200,11 @@ public extension DDayEditorModel {
   func anniversaryReminderChanged(_ isOn: Bool) {
     guard self.phase == .editing, self.showsMilestoneReminders else { return }
     self.remindsAnniversaries = isOn
+  }
+
+  func folderChanged(_ folderID: UUID?) {
+    guard self.phase == .editing else { return }
+    self.folderSelection.select(folderID)
   }
 }
 
@@ -330,13 +337,6 @@ extension DDayEditorModel {
 
 extension DDayEditorModel {
   // MARK: - Private
-
-  private var closeOutcome: DDayEditorOutcome {
-    if self.isOriginalMissing, case let .edit(original) = self.mode {
-      return .deleted(original.id)
-    }
-    return .cancelled
-  }
 
   /// 음력일 때만 음력 날짜를 바꾼다 (음력 선택 이벤트는 `DDayEditorModel+Lunar.swift`).
   func changeLunar(_ transform: (LunarDate) -> LunarDate) {

@@ -74,6 +74,10 @@ final class ControlledEditorStore: DDayStoreClient {
     }
   }
 
+  func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
+    []
+  }
+
   // MARK: - 테스트 조작
 
   /// 가장 먼저 멈춘 `add`·`update` 를 `result` 로 끝낸다.
