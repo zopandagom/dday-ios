@@ -10,6 +10,8 @@ let project = Project.app(
     .feature(.dDayEditor),
     .client(interface: .dDayStore),
     .client(impl: .dDayStore),
+    .client(interface: .photo),
+    .client(impl: .photo),
     .shared(.core),
   ]
 )

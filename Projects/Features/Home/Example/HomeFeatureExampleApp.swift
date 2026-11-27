@@ -1,7 +1,8 @@
 import HomeFeature
 import SwiftUI
 
-/// App 없이 홈 목록만 띄우는 데모 앱. 시나리오(정상·빈 목록·불러오기 오류·삭제 실패)를 골라 Fake 로 확인한다.
+/// App 없이 홈 목록만 띄우는 데모 앱. 시나리오(정상·빈 목록·불러오기 오류·삭제 실패·손상된 썸네일)를 골라 Fake 로 확인한다.
+/// 정상 시나리오는 사진 있는 카드와 없는 카드(기본 배경)가 섞여 있다.
 @main
 struct HomeFeatureExampleApp: App {
   @State private var clock = ExampleClock()

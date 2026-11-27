@@ -25,12 +25,24 @@ final class DeleteFailingStore: DDayStoreClient {
   func delete(id _: UUID) async throws(DDayStoreError) {
     throw .saveFailed
   }
+
+  func fetchPhoto(id: UUID) async throws(DDayStoreError) -> Data? {
+    try await self.base.fetchPhoto(id: id)
+  }
 }
 
-/// `fetchAll` 이 돌아오지 않는 저장소 (로딩 화면 Preview). 쓰기는 모두 `.saveFailed`.
+/// `fetchAll`·`fetchPhoto` 가 돌아오지 않는 저장소 (로딩 화면 Preview). 쓰기는 모두 `.saveFailed`.
 final class NeverEndingStore: DDayStoreClient {
   func fetchAll() async throws(DDayStoreError) -> [DDay] {
-    // 끝나지 않는 스트림을 기다린다. continuation 을 붙잡아 두어 스트림이 끝나지 않게 한다.
+    try await Self.waitForever()
+  }
+
+  func fetchPhoto(id _: UUID) async throws(DDayStoreError) -> Data? {
+    try await Self.waitForever()
+  }
+
+  /// 끝나지 않는 스트림을 기다린다. continuation 을 붙잡아 두어 스트림이 끝나지 않게 한다.
+  private static func waitForever<T>() async throws(DDayStoreError) -> T {
     let (stream, continuation) = AsyncStream.makeStream(of: Never.self)
     for await _ in stream {}
     withExtendedLifetime(continuation) {}

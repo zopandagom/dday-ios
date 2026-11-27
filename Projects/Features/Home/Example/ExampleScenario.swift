@@ -10,6 +10,7 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
   case empty
   case loadFailed
   case deleteFailed
+  case brokenThumbnail
 
   var id: Self { self }
 
@@ -19,6 +20,7 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
     case .empty: "빈 목록"
     case .loadFailed: "불러오기 오류 (다시 시도·앱 복귀로 회복)"
     case .deleteFailed: "삭제 실패"
+    case .brokenThumbnail: "손상된 썸네일 (기본 배경으로 보임)"
     }
   }
 
@@ -38,6 +40,11 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
       store = fake
     case .deleteFailed:
       store = DeleteFailingStore(base: DDayStoreClientFake(dDays: ExampleSamples.dDays(today: clock.today())))
+    case .brokenThumbnail:
+      store = DDayStoreClientFake(dDays: ExampleSamples.dDays(today: clock.today(), photos: [
+        0: ExamplePhotos.broken,
+        1: ExamplePhotos.thumbnail(.init(0.66, 0.9, 0.81), .init(0.79, 0.71, 1)),
+      ]))
     }
     return HomeModel(
       store: store,
@@ -49,8 +56,16 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
 }
 
 /// 실제 오늘 기준 상대 날짜로 만든 샘플. 네 그룹(다가오는·세는 중·지난·계산 불가)이 모두 나온다.
+/// 일부 카드에 직접 그린 사진 썸네일을 붙인다 (나머지는 기본 배경).
 enum ExampleSamples {
-  static func dDays(today: CalendarDay) -> [DDay] {
+  /// 순서 번호 → 사진 (기본 샘플).
+  static let defaultPhotos: [Int: DDayPhoto] = [
+    1: ExamplePhotos.thumbnail(.init(1, 0.78, 0.66), .init(1, 0.56, 0.69)),
+    4: ExamplePhotos.thumbnail(.init(0.66, 0.9, 0.81), .init(0.79, 0.71, 1)),
+    6: ExamplePhotos.thumbnail(.init(1, 0.91, 0.64), .init(1, 0.78, 0.66)),
+  ]
+
+  static func dDays(today: CalendarDay, photos: [Int: DDayPhoto] = ExampleSamples.defaultPhotos) -> [DDay] {
     func solar(_ offset: Int) -> DDayDate {
       .solar(today.adding(days: offset) ?? today)
     }
@@ -75,7 +90,8 @@ enum ExampleSamples {
         schedule: entry.1,
         reminder: .default,
         createdAt: createdAt,
-        updatedAt: createdAt
+        updatedAt: createdAt,
+        photo: photos[index]
       )
     }
   }

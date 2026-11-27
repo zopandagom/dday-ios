@@ -45,6 +45,10 @@ final class ControlledEditorStore: DDayStoreClient {
     try await self.write(.update(id, draft))
   }
 
+  func fetchPhoto(id _: UUID) async throws(DDayStoreError) -> Data? {
+    nil
+  }
+
   func delete(id: UUID) async throws(DDayStoreError) {
     let result = await withCheckedContinuation { continuation in
       self.state.withLock { state in

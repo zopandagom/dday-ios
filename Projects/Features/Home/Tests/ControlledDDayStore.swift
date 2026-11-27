@@ -53,6 +53,10 @@ final class ControlledDDayStore: DDayStoreClient {
     throw .saveFailed
   }
 
+  func fetchPhoto(id _: UUID) async throws(DDayStoreError) -> Data? {
+    nil
+  }
+
   func delete(id: UUID) async throws(DDayStoreError) {
     let result = await withCheckedContinuation { continuation in
       self.state.withLock { state in

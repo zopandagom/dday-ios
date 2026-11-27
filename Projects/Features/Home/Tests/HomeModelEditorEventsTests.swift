@@ -290,4 +290,40 @@ extension HomeModelTests {
     #expect(model.content == .loadFailed)
     #expect(store.fetchAllCallCount == 1)
   }
+
+  @Test("사진이 바뀐 저장 결과가 목록 항목의 photo 에 반영된다")
+  func dDaySavedAppliesPhoto() async throws {
+    let store = ControlledDDayStore()
+    let model = self.makeModel(store: store)
+    try await self.load(model, store, with: .success(HomeSample.mixed))
+    let original = HomeSample.mixed[2]
+    let photo = DDayPhoto(id: HomeSample.id(900), thumbnail: Data([0x01, 0x02]))
+    let saved = DDay(
+      id: original.id,
+      title: original.title,
+      schedule: original.schedule,
+      reminder: original.reminder,
+      createdAt: original.createdAt,
+      updatedAt: original.updatedAt.addingTimeInterval(1),
+      photo: photo
+    )
+
+    #expect(model.dDaySaved(saved) == nil)
+
+    let item = try #require(model.content.items?.first { $0.id == original.id })
+    #expect(item.dDay.photo == photo)
+    #expect(model.content.ids == HomeSample.mixedOrder)
+    #expect(store.fetchAllCallCount == 1)
+
+    let removed = DDay(
+      id: original.id,
+      title: original.title,
+      schedule: original.schedule,
+      reminder: original.reminder,
+      createdAt: original.createdAt,
+      updatedAt: original.updatedAt.addingTimeInterval(2)
+    )
+    #expect(model.dDaySaved(removed) == nil)
+    #expect(model.content.items?.first { $0.id == original.id }?.dDay.photo == nil)
+  }
 }

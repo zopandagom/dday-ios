@@ -28,13 +28,20 @@ enum Sample {
     date: DDayDate = Sample.solar(2026, 11, 26),
     repeatRule: RepeatRule = .none,
     countingStyle: CountingStyle = .dDay,
-    reminder: ReminderSettings = .default
+    reminder: ReminderSettings = .default,
+    photo: DDayPhotoChange = .keep
   ) -> DDayDraft {
     DDayDraft(
       title: title,
       schedule: DDaySchedule(date: date, repeatRule: repeatRule, countingStyle: countingStyle),
-      reminder: reminder
+      reminder: reminder,
+      photo: photo
     )
+  }
+
+  /// 저장소 테스트용 사진. 저장소는 바이트를 해석하지 않으므로 JPEG 이 아니어도 된다. seed 마다 다르고 image ≠ thumbnail.
+  static func cardPhoto(seed: UInt8 = 0) -> CardPhoto {
+    CardPhoto(image: Data([0xA0, seed, 0x01, 0x02]), thumbnail: Data([0xB0, seed]))
   }
 }
 

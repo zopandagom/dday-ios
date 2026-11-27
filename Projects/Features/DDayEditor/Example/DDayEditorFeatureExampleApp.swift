@@ -3,11 +3,12 @@ import DDayEditorFeature
 import DDayStoreTesting
 import Foundation
 import Observation
+import PhotoTesting
 import SwiftUI
 
 /// App 없이 편집 화면만 띄우는 데모 앱. 시나리오를 고르면 App 과 같은 방식(sheet(item:))으로 시트를 띄우고,
 /// 끝나면 마지막 결과와 Fake 저장소의 디데이 수를 목록 위에 보인다. 끌어내려 닫은 뒤 늦게 끝난 옛 편집의 결과도
-/// 결과 줄에 보이고, 그 사이 새로 연 시트는 닫지 않는다.
+/// 결과 줄에 보이고, 그 사이 새로 연 시트는 닫지 않는다. 사진 선택 버튼은 Fake(`PhotoPickerButtonFake`)를 주입한다.
 @main
 struct DDayEditorFeatureExampleApp: App {
   @State private var state = ExampleState()
@@ -19,6 +20,7 @@ struct DDayEditorFeatureExampleApp: App {
           Section("마지막 결과") {
             Text(self.state.lastOutcome)
             Text("저장된 디데이 수: \(self.state.storedCount.map(String.init) ?? "-")")
+            Text("저장된 사진 수: \(self.state.storedPhotoCount.map(String.init) ?? "-")")
           }
           Section("시나리오") {
             ForEach(ExampleScenario.allCases) { scenario in
@@ -38,7 +40,7 @@ struct DDayEditorFeatureExampleApp: App {
           }
         }
       )) { session in
-        DDayEditorView(model: session.model)
+        DDayEditorView(model: session.model, photoPickerButton: PhotoPickerButtonFake.init)
       }
     }
   }
@@ -57,6 +59,7 @@ final class ExampleState {
   private(set) var session: ExampleSession?
   private(set) var lastOutcome = "없음"
   private(set) var storedCount: Int?
+  private(set) var storedPhotoCount: Int?
   @ObservationIgnored private var presentation = DDayEditorPresentation()
 
   func open(_ scenario: ExampleScenario) {
@@ -66,12 +69,14 @@ final class ExampleState {
     let model = DDayEditorModel(
       mode: setup.mode,
       store: setup.store,
+      photoClient: setup.photoClient,
       today: CalendarDay(Date(), in: .autoupdatingCurrent),
       onFinished: { [weak self] outcome in
         self?.finished(outcome, sessionID: id, fake: fake)
       }
     )
     self.storedCount = fake.dDays.count
+    self.storedPhotoCount = fake.photoImages.count
     self.session = ExampleSession(id: id, model: model)
   }
 
@@ -95,5 +100,6 @@ final class ExampleState {
     case .cancelled: "cancelled"
     }
     self.storedCount = fake.dDays.count
+    self.storedPhotoCount = fake.photoImages.count
   }
 }

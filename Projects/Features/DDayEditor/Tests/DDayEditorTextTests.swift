@@ -87,4 +87,69 @@ struct DDayEditorTextTests {
     #expect(self.text(DDayEditorText.alertTitle(nil), Self.english) == "Couldn't Save")
     #expect(self.text(DDayEditorText.alertTitle(.deleteFailed), Self.english) == "Couldn't Delete")
   }
+
+  @Test("사진·자르기 문구 (ko·en)")
+  func photoTexts() {
+    let expected: [ExpectedText] = [
+      ExpectedText(DDayEditorText.photoSection, "사진", "Photo"),
+      ExpectedText(DDayEditorText.photoAdd, "사진 추가", "Add Photo"),
+      ExpectedText(DDayEditorText.photoChange, "사진 바꾸기", "Change Photo"),
+      ExpectedText(DDayEditorText.photoRemove, "사진 지우기", "Remove Photo"),
+      ExpectedText(DDayEditorText.photoLoading, "사진을 불러오는 중…", "Loading photo…"),
+      ExpectedText(DDayEditorText.photoPreview, "선택한 사진", "Selected photo"),
+      ExpectedText(DDayEditorText.cropTitle, "사진 자르기", "Crop Photo"),
+      ExpectedText(DDayEditorText.cropDone, "완료", "Done"),
+      ExpectedText(DDayEditorText.cropHint, "끌어서 옮기고 두 손가락으로 확대하세요.", "Drag to move, pinch to zoom."),
+      ExpectedText(
+        DDayEditorText.cropRenderFailed,
+        "사진을 만들지 못했어요. 다시 시도해 주세요.",
+        "Couldn't prepare the photo. Please try again."
+      ),
+      ExpectedText(
+        DDayEditorText.photoFooter(.loadFailed),
+        "사진을 불러오지 못했어요. 다른 사진을 골라 주세요.",
+        "Couldn't load this photo. Please choose another one."
+      ),
+      ExpectedText(
+        DDayEditorText.photoFooter(.tooLarge),
+        "사진이 너무 커서 쓸 수 없어요. 다른 사진을 골라 주세요.",
+        "This photo is too large. Please choose another one."
+      ),
+      ExpectedText(DDayEditorText.photoFooter(nil), "사진은 이 기기에만 저장돼요.", "Photos are stored only on this device."),
+      ExpectedText(
+        DDayEditorText.photoFooter(.renderFailed),
+        "사진은 이 기기에만 저장돼요.",
+        "Photos are stored only on this device."
+      ),
+    ]
+    for item in expected {
+      #expect(self.text(item.resource, Self.korean) == item.korean)
+      #expect(self.text(item.resource, Self.english) == item.english)
+    }
+  }
+
+  @Test("이미 지워진 디데이 알림 본문: 저장된 사진도 잃었으면 사진 문구")
+  func notFoundPhotoLostMessage() {
+    #expect(self.text(DDayEditorText.alertMessage(.notFoundOnSave, isStoredPhotoLost: false), Self.korean)
+      == "새로 저장할까요?")
+    #expect(self.text(DDayEditorText.alertMessage(.notFoundOnSave, isStoredPhotoLost: true), Self.korean)
+      == "이 디데이는 사진과 함께 이미 지워졌어요. 새로 저장하면 사진 없이 저장돼요.")
+    #expect(self.text(DDayEditorText.alertMessage(.notFoundOnSave, isStoredPhotoLost: true), Self.english)
+      == "This D-day and its photo were already deleted. Saving as new will save it without the photo.")
+    #expect(self.text(DDayEditorText.alertMessage(.saveFailed, isStoredPhotoLost: true), Self.korean)
+      == self.text(DDayEditorText.alertMessage(.saveFailed), Self.korean))
+  }
+}
+
+/// 문구 하나의 기대값 (ko·en).
+private struct ExpectedText {
+  let resource: LocalizedStringResource
+  let korean: String
+  let english: String
+
+  init(_ resource: LocalizedStringResource, _ korean: String, _ english: String) {
+    self.resource = resource
+    self.korean = korean
+    self.english = english
+  }
 }

@@ -212,4 +212,24 @@ struct DDayRecordMappingTests {
     fields.reminderDisabledDaysBefore = [0, 2, 7, 30]
     #expect(DDayRecordMapping.dDay(from: fields)?.reminder.enabledDaysBefore.isEmpty == true)
   }
+
+  @Test("사진 id 와 썸네일이 둘 다 있을 때만 사진이다")
+  func photoMapping() {
+    let id = Sample.id(3)
+    let thumbnail = Data([1, 2, 3])
+
+    #expect(DDayRecordMapping.photo(id: id, thumbnail: thumbnail) == DDayPhoto(id: id, thumbnail: thumbnail))
+    #expect(DDayRecordMapping.photo(id: id, thumbnail: nil) == nil)
+    #expect(DDayRecordMapping.photo(id: nil, thumbnail: thumbnail) == nil)
+    #expect(DDayRecordMapping.photo(id: nil, thumbnail: nil) == nil)
+  }
+
+  @Test("넘긴 사진이 읽은 디데이의 photo 가 된다")
+  func dDayWithPhoto() {
+    let photo = DDayPhoto(id: Sample.id(3), thumbnail: Data([1]))
+    let fields = DDayRecordMapping.fields(of: Self.dDay(Sample.draft()))
+
+    #expect(DDayRecordMapping.dDay(from: fields, photo: photo)?.photo == photo)
+    #expect(DDayRecordMapping.dDay(from: fields)?.photo == nil)
+  }
 }
