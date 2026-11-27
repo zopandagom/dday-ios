@@ -1,6 +1,7 @@
 import Core
 import DDayEditorFeature
 import DDayStoreImpl
+import FolderManagerFeature
 import Foundation
 import HomeFeature
 import PhotoImpl
@@ -39,6 +40,29 @@ struct DDayApp: App {
             }
           )) { session in
             DDayDetailView(model: session.model)
+          }
+          // 폴더 관리 시트는 홈 위(NavigationStack 안쪽)에 띄우고, 폼은 시트 안 NavigationStack 에 push 한다.
+          .sheet(item: Binding(
+            get: { self.flow.folderManager },
+            set: { session in
+              if session == nil {
+                self.flow.folderManagerDismissed()
+              }
+            }
+          )) { session in
+            NavigationStack {
+              FolderManagerView(model: session.model)
+                .navigationDestination(item: Binding(
+                  get: { self.flow.folderForm },
+                  set: { form in
+                    if form == nil {
+                      self.flow.folderFormDismissed()
+                    }
+                  }
+                )) { form in
+                  FolderFormView(model: form.model)
+                }
+            }
           }
       }
       .sheet(item: Binding(
