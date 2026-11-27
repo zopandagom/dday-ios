@@ -24,6 +24,8 @@ public extension Client {
   // 예: static let photoLibrary = Client("PhotoLibrary")
   /// 디데이 저장소 (SwiftData).
   static let dDayStore = Client("DDayStore")
+  /// 사진 선택 버튼(PhotosPicker)과 사진 처리(읽기·자르기·JPEG 만들기, ImageIO).
+  static let photo = Client("Photo")
 }
 
 /// 화면 단위 기능 모듈. Feature 끼리는 서로 의존하지 않는다.
