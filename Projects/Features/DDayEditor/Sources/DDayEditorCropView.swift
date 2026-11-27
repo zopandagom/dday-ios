@@ -95,7 +95,10 @@ struct DDayEditorCropView: View {
         state = value.translation
       }
       .onEnded { value in
-        let crop = self.crop(geometry, frameWidth: frameWidth, zoom: self.zoom, translation: value.translation)
+        // 화면(`liveCrop`)과 같은 확대 값으로 확정한다: 확대가 아직 진행 중이면 `pinchScale` 이 남아 있다
+        // (끌기가 먼저 끝나도 손을 떼기 직전 영역 그대로).
+        let zoom = self.zoom * self.pinchScale
+        let crop = self.crop(geometry, frameWidth: frameWidth, zoom: zoom, translation: value.translation)
         self.center = CGPoint(x: crop.midX, y: crop.midY)
       }
     let pinch = MagnifyGesture()
