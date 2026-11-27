@@ -34,6 +34,28 @@ enum DDayEditorText {
   static var keepEditing: LocalizedStringResource { self.resource("editor.discard.keepEditing") }
   static var saveAsNew: LocalizedStringResource { self.resource("editor.notFound.saveAsNew") }
   static var confirm: LocalizedStringResource { self.resource("editor.confirm") }
+  static var photoSection: LocalizedStringResource { self.resource("editor.section.photo") }
+  static var photoAdd: LocalizedStringResource { self.resource("editor.photo.add") }
+  static var photoChange: LocalizedStringResource { self.resource("editor.photo.change") }
+  static var photoRemove: LocalizedStringResource { self.resource("editor.photo.remove") }
+  static var photoLoading: LocalizedStringResource { self.resource("editor.photo.loading") }
+  static var photoLoadFailed: LocalizedStringResource { self.resource("editor.photo.loadFailed") }
+  static var photoTooLarge: LocalizedStringResource { self.resource("editor.photo.tooLarge") }
+  static var photoOnDevice: LocalizedStringResource { self.resource("editor.photo.onDevice") }
+  static var photoPreview: LocalizedStringResource { self.resource("editor.photo.preview") }
+  static var cropTitle: LocalizedStringResource { self.resource("editor.crop.title") }
+  static var cropDone: LocalizedStringResource { self.resource("editor.crop.done") }
+  static var cropHint: LocalizedStringResource { self.resource("editor.crop.hint") }
+  static var cropRenderFailed: LocalizedStringResource { self.resource("editor.crop.renderFailed") }
+
+  /// 사진 섹션 footer: 불러오기 안내가 있으면 그 문구, 아니면 "이 기기에만 저장".
+  static func photoFooter(_ notice: DDayEditorModel.PhotoNotice?) -> LocalizedStringResource {
+    switch notice {
+    case .loadFailed: self.photoLoadFailed
+    case .tooLarge: self.photoTooLarge
+    case .renderFailed, nil: self.photoOnDevice
+    }
+  }
 
   static func calendarKind(_ kind: DDayEditorModel.CalendarKind) -> LocalizedStringResource {
     switch kind {
@@ -122,10 +144,13 @@ enum DDayEditorText {
     }
   }
 
-  static func alertMessage(_ alert: DDayEditorModel.Alert) -> LocalizedStringResource {
+  /// 알림창 본문. `isStoredPhotoLost` 는 "이미 지워진 디데이"에서 저장된 사진도 잃었는지
+  /// (`DDayEditorModel.isPhotoLostMessageShown`).
+  static func alertMessage(_ alert: DDayEditorModel.Alert, isStoredPhotoLost: Bool = false) -> LocalizedStringResource {
     switch alert {
     case .saveFailed: self.resource("editor.saveFailed.message")
-    case .notFoundOnSave: self.resource("editor.notFound.message")
+    case .notFoundOnSave:
+      self.resource(isStoredPhotoLost ? "editor.notFound.messagePhotoLost" : "editor.notFound.message")
     case .deleteFailed: self.resource("editor.deleteFailed.message")
     }
   }

@@ -1,19 +1,28 @@
 import Core
 import DDayStoreInterface
+import PhotoInterface
 import SwiftUI
 
 /// 디데이 추가·수정 화면 (시트 내용 전체, 자기 NavigationStack 포함).
 /// 상태를 읽어 그리기만 하고, 사용자 동작은 Model 의 이벤트 메서드로 넘긴다.
-public struct DDayEditorView: View {
+/// 사진 선택 버튼은 App(실제 PhotosPicker)·Example(Fake)이 `photoPickerButton` 으로 주입한다 (Feature 는 PhotosUI 를 쓰지 않는다).
+/// 자르기 화면은 시트 안 내비게이션 push 다 (선택기 시트가 내려가는 중에도 모달 표시가 겹치지 않게).
+public struct DDayEditorView<PickerButton: View>: View {
   let model: DDayEditorModel
+  let photoPickerButton: @MainActor (PhotoPickerButtonConfiguration) -> PickerButton
 
-  public init(model: DDayEditorModel) {
+  public init(
+    model: DDayEditorModel,
+    photoPickerButton: @escaping @MainActor (PhotoPickerButtonConfiguration) -> PickerButton
+  ) {
     self.model = model
+    self.photoPickerButton = photoPickerButton
   }
 
   public var body: some View {
     NavigationStack {
       Form {
+        DDayEditorPhotoSection(model: self.model, photoPickerButton: self.photoPickerButton)
         self.titleSection
         DDayEditorDateSection(model: self.model)
         self.repeatSection
@@ -30,6 +39,17 @@ public struct DDayEditorView: View {
       .navigationTitle(Text(self.model.isAddMode ? DDayEditorText.addTitle : DDayEditorText.editTitle))
       .navigationBarTitleDisplayMode(.inline)
       .toolbar { self.toolbar }
+      .navigationDestination(isPresented: Binding(
+        get: { self.model.isCropPresented },
+        set: { isPresented in
+          // 버리기 확인창 때문에 잠시 내린 것이면 작업 이미지를 버리지 않는다 (Model 도 무시한다).
+          if !isPresented, !self.model.isDiscardConfirmationPresented {
+            self.model.cropCancelled()
+          }
+        }
+      )) {
+        DDayEditorCropView(model: self.model)
+      }
       .confirmationDialog(
         Text(DDayEditorText.discardTitle),
         isPresented: Binding(
@@ -81,7 +101,7 @@ public struct DDayEditorView: View {
           }
         }
       } message: { kind in
-        Text(DDayEditorText.alertMessage(kind))
+        Text(DDayEditorText.alertMessage(kind, isStoredPhotoLost: self.model.isPhotoLostMessageShown))
       }
     }
     .interactiveDismissDisabled(self.model.isDismissDisabled)
@@ -166,6 +186,8 @@ public struct DDayEditorView: View {
       } label: {
         Text(DDayEditorText.delete)
       }
+      // 사진 처리 중에는 삭제하지 않는다 (Model 도 무시한다).
+      .disabled(self.model.isPhotoBusy)
       .confirmationDialog(
         Text(DDayEditorText.deleteConfirmTitle),
         isPresented: Binding(

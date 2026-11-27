@@ -120,6 +120,74 @@
         }
       }
     },
+    "editor.crop.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "완료"
+          }
+        }
+      }
+    },
+    "editor.crop.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Drag to move, pinch to zoom."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "끌어서 옮기고 두 손가락으로 확대하세요."
+          }
+        }
+      }
+    },
+    "editor.crop.renderFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't prepare the photo. Please try again."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진을 만들지 못했어요. 다시 시도해 주세요."
+          }
+        }
+      }
+    },
+    "editor.crop.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crop Photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진 자르기"
+          }
+        }
+      }
+    },
     "editor.date.adjusted" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -511,6 +579,23 @@
         }
       }
     },
+    "editor.notFound.messagePhotoLost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This D-day and its photo were already deleted. Saving as new will save it without the photo."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 디데이는 사진과 함께 이미 지워졌어요. 새로 저장하면 사진 없이 저장돼요."
+          }
+        }
+      }
+    },
     "editor.notFound.saveAsNew" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -541,6 +626,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "이미 지워진 디데이예요"
+          }
+        }
+      }
+    },
+    "editor.photo.add" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진 추가"
+          }
+        }
+      }
+    },
+    "editor.photo.change" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진 바꾸기"
+          }
+        }
+      }
+    },
+    "editor.photo.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load this photo. Please choose another one."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진을 불러오지 못했어요. 다른 사진을 골라 주세요."
+          }
+        }
+      }
+    },
+    "editor.photo.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading photo…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진을 불러오는 중…"
+          }
+        }
+      }
+    },
+    "editor.photo.onDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photos are stored only on this device."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진은 이 기기에만 저장돼요."
+          }
+        }
+      }
+    },
+    "editor.photo.preview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "선택한 사진"
+          }
+        }
+      }
+    },
+    "editor.photo.remove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진 지우기"
+          }
+        }
+      }
+    },
+    "editor.photo.tooLarge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This photo is too large. Please choose another one."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진이 너무 커서 쓸 수 없어요. 다른 사진을 골라 주세요."
           }
         }
       }
@@ -745,6 +966,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "기념일 알림"
+          }
+        }
+      }
+    },
+    "editor.section.photo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "사진"
           }
         }
       }
