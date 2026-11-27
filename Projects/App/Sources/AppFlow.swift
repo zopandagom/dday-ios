@@ -20,6 +20,8 @@ import PhotoInterface
 ///   `dDayDeleted(id:)` 로 홈(`HomeModel`)과 상세(`DDayDetailModel`) 둘 다에 1:1 넘기고, 둘 다 목록을 다시 읽지 않는다.
 ///   상세가 지금 보는 디데이가 지워졌는지는 상세 모델이 판단해 `isRemoved` 로 두고, 여기서는 넘긴 뒤 그 값을 보고 닫는다.
 /// - 편집 화면은 열 때 "오늘"을 한 번 받아 추가 모드의 시작 날짜로 쓴다.
+/// - 폴더 목록은 홈이 불러온 값(`homeModel.folders`)을 상세·편집을 열 때 넘긴다 (편집 화면은 폴더를 읽지 않는다).
+///   추가 모드의 기본 폴더는 홈에서 고른 칩이다 (`onAddTapped` 의 인자).
 /// - 편집 화면의 사진 처리(읽기·자르기·JPEG 만들기)는 앱에 하나인 `photoClient` 로 한다.
 @MainActor
 @Observable
@@ -66,7 +68,7 @@ final class AppFlow {
     self.homeModel = HomeModel(
       store: store,
       today: today,
-      onAddTapped: { flowReference.flow?.openEditor(.add) },
+      onAddTapped: { folderID in flowReference.flow?.openEditor(.add, defaultFolderID: folderID) },
       onDDaySelected: { flowReference.flow?.openDetail($0) }
     )
     flowReference.flow = self
@@ -94,6 +96,7 @@ final class AppFlow {
     guard self.detail == nil else { return }
     let model = DDayDetailModel(
       dDay: dDay,
+      folders: self.homeModel.folders,
       store: self.store,
       today: self.today,
       onEditTapped: { [weak self] dDay in
@@ -103,13 +106,16 @@ final class AppFlow {
     self.detail = DetailSession(id: UUID(), model: model)
   }
 
-  private func openEditor(_ mode: DDayEditorMode) {
+  /// - Parameter defaultFolderID: 추가 모드의 처음 폴더 (홈에서 고른 칩). 수정 모드는 쓰지 않는다.
+  private func openEditor(_ mode: DDayEditorMode, defaultFolderID: UUID? = nil) {
     guard let sessionID = self.presentation.open(newID: UUID()) else { return }
     let model = DDayEditorModel(
       mode: mode,
       store: self.store,
       photoClient: self.photoClient,
       today: self.today(),
+      folders: self.homeModel.folders,
+      defaultFolderID: defaultFolderID,
       onFinished: { [weak self] outcome in
         self?.editorFinished(outcome, sessionID: sessionID)
       }
