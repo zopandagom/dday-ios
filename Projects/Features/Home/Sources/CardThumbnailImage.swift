@@ -30,6 +30,8 @@ struct CardThumbnailImage: View {
     }
     .task(id: self.photo.id) {
       let image = await UIImage(data: self.photo.thumbnail)?.byPreparingForDisplay()
+      // 사라지거나 사진이 바뀌어 취소됐으면 쓰지 않는다 (취소로 온 nil 을 디코딩 실패로 보이지 않게).
+      guard !Task.isCancelled else { return }
       self.decoded = image.map { .image($0) } ?? .failed
     }
   }

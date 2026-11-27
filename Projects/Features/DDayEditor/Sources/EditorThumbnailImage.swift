@@ -32,7 +32,10 @@ struct EditorThumbnailImage: View {
           self.image = nil
           return
         }
-        self.image = await UIImage(data: data)?.byPreparingForDisplay()
+        let image = await UIImage(data: data)?.byPreparingForDisplay()
+        // 사라지거나 사진이 바뀌어 취소됐으면 쓰지 않는다 (취소로 온 nil 로 아이콘이 깜빡이지 않게).
+        guard !Task.isCancelled else { return }
+        self.image = image
       }
   }
 }
