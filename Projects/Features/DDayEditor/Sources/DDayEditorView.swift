@@ -25,7 +25,8 @@ public struct DDayEditorView<PickerButton: View>: View {
       Form {
         DDayEditorPhotoSection(model: self.model, photoPickerButton: self.photoPickerButton)
         self.titleSection
-        // 폴더 목록이 없으면(홈 불러오기 전·실패) 섹션을 숨기고 미분류로 저장한다.
+        // 폴더 목록이 없으면(홈 불러오기 전·실패) 섹션을 숨긴다. 추가는 미분류로, 수정은 원래 폴더 id 로 저장한다
+        // (`EditorFolderSelection.savedFolderID`).
         if !self.model.folders.isEmpty {
           self.folderSection
         }
