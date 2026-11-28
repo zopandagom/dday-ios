@@ -19,7 +19,8 @@ struct HomeModelTests {
       store: store,
       today: { clock.day },
       onAddTapped: { recorder.addFolderIDs.append($0) },
-      onDDaySelected: { recorder.selected.append($0) }
+      onDDaySelected: { recorder.selected.append($0) },
+      onFolderManagerTapped: { recorder.folderManagerTapCount += 1 }
     )
   }
 

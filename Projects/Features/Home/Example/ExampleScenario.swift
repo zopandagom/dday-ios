@@ -55,7 +55,8 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
         folders: DDayStoreClientFake.defaultFolders + ExampleSamples.customFolders
       )
     case .noFolders:
-      // 사용자가 폴더를 다 지운 저장소 (PR②). 디데이의 folderID 는 모두 없는 폴더라 미분류로 읽힌다.
+      // 폴더 행 없이 디데이의 folderID 만 남은 저장소(옛 데이터·읽을 수 없는 폴더 행). 모두 미분류로 읽힌다.
+      // (폴더 관리로 폴더를 지우면 안의 디데이는 미분류로 옮겨지거나 함께 지워져 이 상태가 되지 않는다.)
       return DDayStoreClientFake(dDays: samples.dDays, photoImages: samples.photoImages)
     case .folderLoadFailed:
       // 디데이는 읽고 폴더 읽기만 한 번 실패 → 오류 화면, 다시 시도가 둘 다 다시 읽어 회복.

@@ -1,6 +1,7 @@
 import Core
 import DDayEditorFeature
 import DDayStoreInterface
+import FolderManagerFeature
 import Foundation
 import HomeFeature
 import Observation
@@ -23,6 +24,15 @@ import PhotoInterface
 /// - 폴더 목록은 홈이 불러온 값(`homeModel.folders`)을 상세·편집을 열 때 넘긴다 (편집 화면은 폴더를 읽지 않는다).
 ///   추가 모드의 기본 폴더는 홈에서 고른 칩이다 (`onAddTapped` 의 인자).
 /// - 편집 화면의 사진 처리(읽기·자르기·JPEG 만들기)는 앱에 하나인 `photoClient` 로 한다.
+/// - 폴더 관리: 홈의 [폴더 관리](칩·툴바)가 관리 시트(NavigationStack 안쪽, 홈 위)를 열고, 그 안에서 추가·수정 폼을 push 한다.
+///   관리 시트와 편집 시트는 동시에 뜨지 않는다 (관리 시트가 떠 있으면 편집을 열지 않고, 편집 시트가 떠 있으면 관리를 열지 않는다).
+///   이전 관리·폼 작업이 저장소에서 끝나기 전에는 관리 시트를 다시 열지 않는다. 열고 닫는 판단은 Feature 의 순수 값
+///   `FolderManagerPresentation` 이 하고, 여기서는 반환값대로 `folderManager`·`folderForm` 을 바꾸기만 한다.
+///   불변식: `folderManager?.id == folderPresentation.sessionID`, `folderForm?.id == folderPresentation.formSessionID`
+///   (바꾸는 곳은 열기·폼 열기·폼 끝남·폼 닫힘·시트 닫힘뿐).
+///   관리 모델은 홈의 폴더 목록·디데이 수로 시작하고 저장소에서 폴더를 읽지 않는다. 폼 결과는 관리 모델(`formFinished`)로,
+///   관리 결과는 홈·상세에 `foldersChanged(_:)`·`dDayDeleted(id:)` 로 넘긴다. 시트·폼이 닫힌 뒤 끝난 작업의 결과도
+///   세션으로 거르지 않고 그대로 넘긴다 (결과는 저장소에 이미 반영됐다). 상세가 지금 보는 디데이가 함께 지워지면 상세를 닫는다.
 @MainActor
 @Observable
 final class AppFlow {
@@ -46,11 +56,37 @@ final class AppFlow {
     }
   }
 
+  /// 떠 있는 폴더 관리 시트 하나. id 는 `FolderManagerPresentation` 이 돌려준 세션 id 다.
+  struct FolderManagerSession: Identifiable {
+    let id: UUID
+    let model: FolderManagerModel
+  }
+
+  /// 관리 시트 안에 push 된 폴더 폼 하나. `==`·`hash` 는 세션 id 만 본다 (DetailSession 과 같다).
+  struct FolderFormSession: Identifiable, Hashable {
+    let id: UUID
+    let model: FolderFormModel
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+      hasher.combine(self.id)
+    }
+  }
+
   let homeModel: HomeModel
   private(set) var detail: DetailSession?
   private(set) var editor: EditorSession?
+  private(set) var folderManager: FolderManagerSession?
+  private(set) var folderForm: FolderFormSession?
 
   @ObservationIgnored private var presentation = DDayEditorPresentation()
+  @ObservationIgnored private var folderPresentation = FolderManagerPresentation()
+  /// 마지막으로 만든 관리·폼 모델. 세션을 닫아도 지우지 않고 새로 열 때 덮는다 (이전 작업이 끝났는지 보려고).
+  @ObservationIgnored private var lastFolderManagerModel: FolderManagerModel?
+  @ObservationIgnored private var lastFolderFormModel: FolderFormModel?
   @ObservationIgnored private let store: any DDayStoreClient
   @ObservationIgnored private let photoClient: any PhotoClient
   @ObservationIgnored private let today: @MainActor () -> CalendarDay
@@ -69,7 +105,8 @@ final class AppFlow {
       store: store,
       today: today,
       onAddTapped: { folderID in flowReference.flow?.openEditor(.add, defaultFolderID: folderID) },
-      onDDaySelected: { flowReference.flow?.openDetail($0) }
+      onDDaySelected: { flowReference.flow?.openDetail($0) },
+      onFolderManagerTapped: { flowReference.flow?.openFolderManager() }
     )
     flowReference.flow = self
   }
@@ -81,6 +118,20 @@ final class AppFlow {
     assert(session.id == dismissedID, "editor 와 presentation 의 세션이 어긋났다")
     self.editor = nil
     session.model.sheetDismissed()
+  }
+
+  /// 관리 시트 바인딩의 set(nil): 닫힘 ([닫기]·끌어내림). 시트와 폼을 내린다. 저장소 작업·콜백은 끝까지 돈다.
+  /// 이미 닫혔으면 아무것도 하지 않는다.
+  func folderManagerDismissed() {
+    guard self.folderPresentation.dismissed() != nil else { return }
+    self.folderManager = nil
+    self.folderForm = nil
+  }
+
+  /// 폼 바인딩의 set(nil): 뒤로 가기. 저장 중이 아니면 입력은 버린다. 이미 닫혔으면 아무것도 하지 않는다.
+  func folderFormDismissed() {
+    guard self.folderPresentation.formDismissed() != nil else { return }
+    self.folderForm = nil
   }
 
   /// 상세 바인딩의 set(nil): 뒤로 가기·가장자리 스와이프로 닫힘. 이미 nil 이면(프로그램으로 닫은 뒤 다시 불림) 아무것도 하지 않는다.
@@ -108,6 +159,8 @@ final class AppFlow {
 
   /// - Parameter defaultFolderID: 추가 모드의 처음 폴더 (홈에서 고른 칩). 수정 모드는 쓰지 않는다.
   private func openEditor(_ mode: DDayEditorMode, defaultFolderID: UUID? = nil) {
+    // 관리 시트가 떠 있으면 편집을 열지 않는다 (두 시트는 동시에 뜨지 않는다).
+    guard !self.folderPresentation.isPresented else { return }
     guard let sessionID = self.presentation.open(newID: UUID()) else { return }
     let model = DDayEditorModel(
       mode: mode,
@@ -148,6 +201,79 @@ final class AppFlow {
       self.detail = nil
     }
   }
+}
+
+extension AppFlow {
+  /// 홈의 [폴더 관리]: 관리 시트를 연다. 떠 있거나, 편집 시트가 떠 있거나, 이전 관리·폼 작업이 끝나지 않았으면 무시한다.
+  private func openFolderManager() {
+    let isPreviousWorkInFlight = self.lastFolderManagerModel?.isBusy == true
+      || self.lastFolderFormModel?.phase == .saving
+    guard let sessionID = self.folderPresentation.open(
+      newID: UUID(),
+      isEditorPresented: self.editor != nil,
+      isPreviousWorkInFlight: isPreviousWorkInFlight
+    ) else { return }
+    // 관리 모델의 폼 열기 콜백이 모델 자신을 넘기도록 약한 상자를 쓰고 만든 뒤 채운다 (순환 참조 없음).
+    let managerReference = WeakFolderManagerReference()
+    let model = FolderManagerModel(
+      folders: self.homeModel.folders,
+      dDayCounts: self.homeModel.folderDDayCounts,
+      store: self.store,
+      onAddTapped: { [weak self] in
+        guard let manager = managerReference.model else { return }
+        self?.openFolderForm(.add, managerSessionID: sessionID, manager: manager)
+      },
+      onEditTapped: { [weak self] folder in
+        guard let manager = managerReference.model else { return }
+        self?.openFolderForm(.edit(folder), managerSessionID: sessionID, manager: manager)
+      },
+      onFoldersChanged: { [weak self] folders in
+        self?.homeModel.foldersChanged(folders)
+        self?.detail?.model.foldersChanged(folders)
+      },
+      onDDayDeleted: { [weak self] id in
+        self?.folderDDayDeleted(id: id)
+      }
+    )
+    managerReference.model = model
+    self.lastFolderManagerModel = model
+    self.folderManager = FolderManagerSession(id: sessionID, model: model)
+  }
+
+  /// 관리 화면의 [새 폴더]·행 탭: 폼을 push 한다. 그 관리 세션이 떠 있고 폼이 없을 때만 연다.
+  /// 폼 결과 클로저는 관리 모델을 강하게 잡는다 (관리 세션이 닫힌 뒤 와도 관리 모델 → 홈으로 넘긴다).
+  private func openFolderForm(_ mode: FolderFormMode, managerSessionID: UUID, manager: FolderManagerModel) {
+    guard let formSessionID = self.folderPresentation.openForm(newID: UUID(), managerSessionID: managerSessionID)
+    else { return }
+    let model = FolderFormModel(mode: mode, store: self.store) { [weak self] outcome in
+      self?.folderFormFinished(outcome, formSessionID: formSessionID, manager: manager)
+    }
+    self.lastFolderFormModel = model
+    self.folderForm = FolderFormSession(id: formSessionID, model: model)
+  }
+
+  /// 떠 있는 폼이면 pop 하고, 결과는 늘 관리 모델에 넘긴다 (관리 모델이 홈·상세에 넘긴다).
+  private func folderFormFinished(_ outcome: FolderFormOutcome, formSessionID: UUID, manager: FolderManagerModel) {
+    if self.folderPresentation.formFinished(formSessionID: formSessionID) {
+      self.folderForm = nil
+    }
+    manager.formFinished(outcome)
+  }
+
+  /// 폴더와 함께 지운 디데이: 홈·상세에 넘기고, 상세가 지금 보는 디데이면 상세를 닫는다.
+  private func folderDDayDeleted(id: UUID) {
+    self.homeModel.dDayDeleted(id: id)
+    self.detail?.model.dDayDeleted(id: id)
+    if self.detail?.model.isRemoved == true {
+      self.detail = nil
+    }
+  }
+}
+
+/// 관리 모델을 약하게 가리키는 상자. 관리 모델의 콜백이 만들어질 때 모델이 아직 없으므로 이것을 잡는다.
+@MainActor
+private final class WeakFolderManagerReference {
+  weak var model: FolderManagerModel?
 }
 
 /// `AppFlow` 를 약하게 가리키는 상자. 홈 콜백이 init 중에 만들어지므로 self 대신 이것을 잡는다.

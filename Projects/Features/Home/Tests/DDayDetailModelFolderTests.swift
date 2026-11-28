@@ -89,4 +89,38 @@ struct DDayDetailModelFolderTests {
 
     #expect(model.folder == HomeSample.family)
   }
+
+  // MARK: 폴더 관리 결과
+
+  @Test("foldersChanged: 이름·색이 바뀐 폴더가 반영된다")
+  func foldersChangedRenames() {
+    let model = self.makeModel(self.dDay(folderID: HomeSample.family.id))
+    let renamed = DDayFolder(id: HomeSample.family.id, name: .custom("우리 집"), color: .butter, icon: .house)
+
+    model.foldersChanged([HomeSample.birthday, renamed])
+
+    #expect(model.folder == renamed)
+  }
+
+  @Test("foldersChanged: 지운 폴더면 nil (미분류)")
+  func foldersChangedDeleted() {
+    let model = self.makeModel(self.dDay(folderID: HomeSample.family.id))
+
+    model.foldersChanged(HomeSample.folders.filter { $0.id != HomeSample.family.id })
+
+    #expect(model.folder == nil)
+  }
+
+  @Test("foldersChanged: 지워진 뒤에는 무시")
+  func foldersChangedIgnoredAfterRemoved() {
+    let dDay = self.dDay(folderID: HomeSample.family.id)
+    let model = self.makeModel(dDay)
+    model.dDayDeleted(id: dDay.id)
+    #expect(model.isRemoved)
+
+    model.foldersChanged([])
+
+    #expect(model.folders == HomeSample.folders)
+    #expect(model.folder == HomeSample.family)
+  }
 }

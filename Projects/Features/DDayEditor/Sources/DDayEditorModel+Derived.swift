@@ -107,7 +107,7 @@ public extension DDayEditorModel {
         remindsAnniversaries: self.remindsAnniversaries
       ),
       photo: self.photoChange,
-      folderID: self.folderSelection.folderID
+      folderID: self.folderSelection.savedFolderID
     )
   }
 

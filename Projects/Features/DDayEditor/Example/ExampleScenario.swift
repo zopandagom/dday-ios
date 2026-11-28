@@ -120,14 +120,14 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
         folderID: ExampleSamples.folderID(.couple)
       ))
     case .editFolderMissing:
-      // 열린 사이 지워진 폴더 (PR②). 편집 화면은 미분류로 열고, 변경 없음으로 본다.
+      // 열린 사이 지워진 폴더: 미분류로 보이고, 건드리지 않고 저장하면 원래 id 를 보내 저장소가 미분류로 정규화.
       return Self.editing(ExampleSamples.dDay(
         "지워진 폴더의 디데이",
         .solar(CalendarDay(year: 2027, month: 1, day: 1) ?? ExampleSamples.fallbackDay),
         folderID: UUID()
       ))
     case .noFolders:
-      // 홈 불러오기 전·실패에 연 편집 화면: 폴더 목록이 비어 섹션이 없고 미분류로 저장한다.
+      // 홈 불러오기 전·실패에 연 추가 화면: 폴더 목록이 비어 섹션이 없고 미분류로 저장한다.
       let fake = DDayStoreClientFake()
       var setup = ExampleSetup(mode: .add, store: fake, fake: fake)
       setup.folders = []

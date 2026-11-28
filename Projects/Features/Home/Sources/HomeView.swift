@@ -5,7 +5,8 @@ import DesignSystem
 import SwiftUI
 
 /// 홈 목록. 상태를 읽어 그리기만 하고, 사용자 동작·앱 상태 변화는 Model 의 이벤트 메서드로 넘긴다.
-/// 목록이 있고 폴더가 하나라도 있으면 위에 칩 줄(전체·폴더들·미분류)을 둔다 (필터 결과가 비어도 남는다).
+/// 목록이 있고 폴더가 하나라도 있으면 위에 칩 줄(전체·폴더들·미분류·폴더 관리)을 둔다 (필터 결과가 비어도 남는다).
+/// 폴더 관리는 목록이 있을 때 툴바 왼쪽 폴더 버튼으로도 연다 (폴더가 0개여도).
 /// NavigationStack 과 상세(`DDayDetailView`) `navigationDestination` 은 App·Example 이 붙인다.
 public struct HomeView: View {
   let model: HomeModel
@@ -24,6 +25,17 @@ public struct HomeView: View {
     self.content
       .navigationTitle(Text(HomeText.title))
       .toolbar {
+        // 폴더 관리는 목록이 있을 때만 (칩 줄과 같은 조건의 일부).
+        if case .loaded = self.model.content {
+          ToolbarItem(placement: .topBarLeading) {
+            Button {
+              self.model.folderManagerButtonTapped()
+            } label: {
+              Image(systemName: "folder")
+            }
+            .accessibilityLabel(Text(HomeText.folderManager))
+          }
+        }
         ToolbarItem(placement: .primaryAction) {
           Button {
             self.model.addButtonTapped()
@@ -226,7 +238,7 @@ public struct HomeView: View {
     return false
   }
 
-  /// 칩 줄: 전체 → 폴더들(순서대로) → 미분류.
+  /// 칩 줄: 전체 → 폴더들(순서대로) → 미분류 → [폴더 관리].
   private func chipBar(horizontalPadding: CGFloat) -> some View {
     ScrollView(.horizontal) {
       HStack(spacing: 8) {
@@ -235,6 +247,9 @@ public struct HomeView: View {
           self.chip(folder.name.text, color: folder.color, icon: folder.icon, filter: .folder(folder.id))
         }
         self.chip(Text(FolderText.unfiled), color: nil, icon: nil, filter: .unfiled)
+        FolderChip(title: Text(HomeText.folderManager), color: nil, icon: nil, isSelected: false) {
+          self.model.folderManagerButtonTapped()
+        }
       }
       .padding(.horizontal, horizontalPadding)
       .padding(.vertical, 8)

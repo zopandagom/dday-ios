@@ -34,6 +34,22 @@ final class DeleteFailingStore: DDayStoreClient {
   func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
     try await self.base.fetchFolders()
   }
+
+  func addFolder(_ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.addFolder(draft)
+  }
+
+  func updateFolder(id: UUID, _ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.updateFolder(id: id, draft)
+  }
+
+  func moveFolders(_ orderedIDs: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.moveFolders(orderedIDs)
+  }
+
+  func deleteFolder(id: UUID, dDays: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
+    try await self.base.deleteFolder(id: id, dDays: dDays)
+  }
 }
 
 /// `fetchAll`·`fetchPhoto`·`fetchFolders` 가 돌아오지 않는 저장소 (로딩 화면 Preview). 쓰기는 모두 `.saveFailed`.
@@ -68,6 +84,23 @@ final class NeverEndingStore: DDayStoreClient {
   }
 
   func delete(id _: UUID) async throws(DDayStoreError) {
+    throw .saveFailed
+  }
+
+  // 폴더 쓰기도 다른 쓰기처럼 `.saveFailed`.
+  func addFolder(_: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    throw .saveFailed
+  }
+
+  func updateFolder(id _: UUID, _: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    throw .saveFailed
+  }
+
+  func moveFolders(_: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    throw .saveFailed
+  }
+
+  func deleteFolder(id _: UUID, dDays _: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
     throw .saveFailed
   }
 }
@@ -107,6 +140,22 @@ final class SlowPhotoStore: DDayStoreClient {
   func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
     try await self.base.fetchFolders()
   }
+
+  func addFolder(_ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.addFolder(draft)
+  }
+
+  func updateFolder(id: UUID, _ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.updateFolder(id: id, draft)
+  }
+
+  func moveFolders(_ orderedIDs: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.moveFolders(orderedIDs)
+  }
+
+  func deleteFolder(id: UUID, dDays: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
+    try await self.base.deleteFolder(id: id, dDays: dDays)
+  }
 }
 
 /// 압축본 읽기(`fetchPhoto`)만 늘 `.loadFailed` 로 실패하는 저장소 (압축본 읽기 실패 시나리오). 나머지는 `base` 그대로.
@@ -139,6 +188,22 @@ final class PhotoReadFailingStore: DDayStoreClient {
 
   func fetchFolders() async throws(DDayStoreError) -> [DDayFolder] {
     try await self.base.fetchFolders()
+  }
+
+  func addFolder(_ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.addFolder(draft)
+  }
+
+  func updateFolder(id: UUID, _ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.updateFolder(id: id, draft)
+  }
+
+  func moveFolders(_ orderedIDs: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.moveFolders(orderedIDs)
+  }
+
+  func deleteFolder(id: UUID, dDays: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
+    try await self.base.deleteFolder(id: id, dDays: dDays)
   }
 }
 
@@ -182,5 +247,21 @@ final class FolderFetchFailingStore: DDayStoreClient {
       throw .loadFailed
     }
     return try await self.base.fetchFolders()
+  }
+
+  func addFolder(_ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.addFolder(draft)
+  }
+
+  func updateFolder(id: UUID, _ draft: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    try await self.base.updateFolder(id: id, draft)
+  }
+
+  func moveFolders(_ orderedIDs: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    try await self.base.moveFolders(orderedIDs)
+  }
+
+  func deleteFolder(id: UUID, dDays: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
+    try await self.base.deleteFolder(id: id, dDays: dDays)
   }
 }

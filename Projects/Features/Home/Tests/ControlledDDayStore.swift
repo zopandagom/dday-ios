@@ -103,6 +103,23 @@ final class ControlledDDayStore: DDayStoreClient {
     }
   }
 
+  // 폴더 쓰기는 이 테스트들이 부르지 않는다.
+  func addFolder(_: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    throw .loadFailed
+  }
+
+  func updateFolder(id _: UUID, _: DDayFolderDraft) async throws(DDayStoreError) -> DDayFolder {
+    throw .loadFailed
+  }
+
+  func moveFolders(_: [UUID]) async throws(DDayStoreError) -> [DDayFolder] {
+    throw .loadFailed
+  }
+
+  func deleteFolder(id _: UUID, dDays _: FolderDeletion) async throws(DDayStoreError) -> [UUID] {
+    throw .loadFailed
+  }
+
   // MARK: - 테스트 조작
 
   /// 가장 먼저 멈춘 `fetchAll` 을 `result` 로 끝낸다.

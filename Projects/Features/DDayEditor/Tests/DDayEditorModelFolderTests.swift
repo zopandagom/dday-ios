@@ -5,7 +5,7 @@ import Foundation
 import Testing
 @testable import DDayEditorFeature
 
-/// 폴더 선택: 열 때 받은 목록, 추가 모드 기본 폴더, 수정 모드 저장된 폴더, 저장 draft.
+/// 폴더 선택: 열 때 받은 목록, 추가 모드 기본 폴더, 수정 모드 저장된 폴더. 저장 draft 는 DDayEditorModelFolderSaveTests.swift.
 @MainActor
 struct DDayEditorModelFolderTests {
   let recorder = OutcomeRecorder()
@@ -158,88 +158,5 @@ struct DDayEditorModelFolderTests {
     model.folderChanged(EditorSample.family.id)
 
     #expect(model.folderID == nil)
-  }
-
-  // MARK: 저장
-
-  @Test("추가 저장 draft 에 고른 폴더가 들어간다")
-  func addSaveDraftHasFolder() async throws {
-    let store = ControlledEditorStore()
-    let model = self.adding(defaultFolderID: EditorSample.family.id, store: store)
-    model.titleChanged("할머니 생신")
-    model.folderChanged(EditorSample.couple.id)
-
-    let task = model.saveButtonTapped()
-    try await store.waitForPendingWrite()
-    try store.resumeWrite(with: .failure(.saveFailed))
-    await task?.value
-
-    guard case let .add(draft) = store.calls.first else {
-      Issue.record("add 가 아니다: \(store.calls)")
-      return
-    }
-    #expect(draft.folderID == EditorSample.couple.id)
-  }
-
-  @Test("수정 저장 draft 에 고른 폴더가 들어간다 (미분류로 바꾸면 nil)")
-  func updateSaveDraftHasFolder() async throws {
-    let store = ControlledEditorStore()
-    let model = self.editing(folderID: EditorSample.couple.id, store: store)
-    model.folderChanged(nil)
-
-    let task = model.saveButtonTapped()
-    try await store.waitForPendingWrite()
-    try store.resumeWrite(with: .failure(.saveFailed))
-    await task?.value
-
-    #expect(store.calls == [.update(EditorSample.originalID, EditorSample.dDay(folderID: nil).draft)])
-  }
-
-  @Test("추가 저장 결과는 저장소가 돌려준 폴더 그대로 알린다")
-  func addSaveOutcomeHasFolder() async throws {
-    let fake = DDayStoreClientFake(folders: EditorSample.folders)
-    let model = self.adding(defaultFolderID: EditorSample.family.id, store: fake)
-    model.titleChanged("가족 여행")
-
-    await model.saveButtonTapped()?.value
-
-    let saved = try #require(fake.dDays.first)
-    #expect(saved.folderID == EditorSample.family.id)
-    #expect(self.recorder.outcomes == [.saved(saved)])
-  }
-
-  @Test("폴더를 바꾼 뒤 저장이 실패하면 고른 폴더가 남는다")
-  func saveFailureKeepsFolder() async {
-    let fake = DDayStoreClientFake(
-      dDays: [EditorSample.dDay(folderID: EditorSample.couple.id)],
-      folders: EditorSample.folders
-    )
-    fake.failNextCall(with: .saveFailed)
-    let model = self.editing(folderID: EditorSample.couple.id, store: fake)
-    model.folderChanged(EditorSample.family.id)
-
-    await model.saveButtonTapped()?.value
-
-    #expect(model.alert == .saveFailed)
-    #expect(model.phase == .editing)
-    #expect(model.folderID == EditorSample.family.id)
-    #expect(model.hasChanges)
-    #expect(fake.dDays.first?.folderID == EditorSample.couple.id)
-  }
-
-  @Test("새로 저장도 고른 폴더로 추가한다")
-  func saveAsNewHasFolder() async throws {
-    // 원래 디데이가 없는 저장소: 수정 저장이 .notFound → 새로 저장.
-    let fake = DDayStoreClientFake(folders: EditorSample.folders)
-    let model = self.editing(folderID: EditorSample.couple.id, store: fake)
-    model.folderChanged(EditorSample.family.id)
-    await model.saveButtonTapped()?.value
-    #expect(model.alert == .notFoundOnSave)
-
-    await model.saveAsNewTapped()?.value
-
-    let saved = try #require(fake.dDays.first)
-    #expect(saved.folderID == EditorSample.family.id)
-    #expect(self.recorder.outcomes == [.savedAsNew(saved, replacing: EditorSample.originalID)])
   }
 }

@@ -116,7 +116,7 @@ public final class DDayEditorModel: Identifiable {
       // 제목만 정리하고 날짜는 맞추기 전 저장값: 맞췄으면 hasChanges 가 true 라 말없이 덮지 않는다.
       initialDraft = DDayDraft(title: Self.trimmed(dDay.title), schedule: dDay.schedule, reminder: dDay.reminder)
     }
-    initialDraft.folderID = folderSelection.folderID
+    initialDraft.folderID = folderSelection.savedFolderID
     self.initialDraft = initialDraft
   }
 }
