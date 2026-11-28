@@ -26,6 +26,8 @@ public extension Client {
   static let dDayStore = Client("DDayStore")
   /// 사진 선택 버튼(PhotosPicker)과 사진 처리(읽기·자르기·JPEG 만들기, ImageIO).
   static let photo = Client("Photo")
+  /// 로컬 알림 (UserNotifications): 권한 상태·요청, 대기 요청 교체, 이 앱의 알림 설정 화면 열기(UIKit).
+  static let localNotification = Client("LocalNotification")
 }
 
 /// 화면 단위 기능 모듈. Feature 끼리는 서로 의존하지 않는다.
@@ -36,6 +38,8 @@ public enum Feature: String, CaseIterable {
   case dDayEditor = "DDayEditor"
   /// 폴더 관리(목록·추가·수정·순서·삭제) 화면.
   case folderManager = "FolderManager"
+  /// 알림 예약 흐름 (권한·다시 예약). 앱에 보이는 화면은 없고 Example 만 있다.
+  case reminder = "Reminder"
 
   public var name: String { "\(self.rawValue)Feature" }
   public var tests: String { "\(self.name)Tests" }

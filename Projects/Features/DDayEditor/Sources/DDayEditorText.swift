@@ -23,6 +23,8 @@ enum DDayEditorText {
   static var reminderSection: LocalizedStringResource { self.resource("editor.section.reminder") }
   static var reminderEnabled: LocalizedStringResource { self.resource("editor.reminder.enabled") }
   static var reminderTime: LocalizedStringResource { self.resource("editor.reminder.time") }
+  static var notificationDenied: LocalizedStringResource { self.resource("editor.reminder.denied") }
+  static var openNotificationSettings: LocalizedStringResource { self.resource("editor.reminder.openSettings") }
   static var milestoneSection: LocalizedStringResource { self.resource("editor.section.milestones") }
   static var milestoneEveryHundredDays: LocalizedStringResource { self.resource("editor.milestone.everyHundredDays") }
   static var milestoneAnniversaries: LocalizedStringResource { self.resource("editor.milestone.anniversaries") }

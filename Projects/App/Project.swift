@@ -9,10 +9,13 @@ let project = Project.app(
     .feature(.home),
     .feature(.dDayEditor),
     .feature(.folderManager),
+    .feature(.reminder),
     .client(interface: .dDayStore),
     .client(impl: .dDayStore),
     .client(interface: .photo),
     .client(impl: .photo),
+    .client(interface: .localNotification),
+    .client(impl: .localNotification),
     .shared(.core),
   ]
 )

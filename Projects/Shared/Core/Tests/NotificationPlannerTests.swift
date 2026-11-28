@@ -221,4 +221,16 @@ struct NotificationPlannerTests {
     #expect(TimeOfDay(hour: 9, minute: 60) == nil)
     #expect(TimeOfDay(hour: 23, minute: 59) != nil)
   }
+
+  @Test("TimeOfDay(_:in:) 는 그 시간대의 시·분이고 초는 버린다")
+  func timeOfDayFromDate() throws {
+    // 2026-11-26 14:59:59 UTC = 서울 23:59:59
+    let date = Date(timeIntervalSince1970: 1_795_705_199)
+    let seoul = try #require(TimeZone(identifier: "Asia/Seoul"))
+    let utc = try #require(TimeZone(identifier: "UTC"))
+    try #expect(TimeOfDay(date, in: seoul) == self.time(23, 59))
+    try #expect(TimeOfDay(date, in: utc) == self.time(14, 59))
+    #expect(CalendarDay(date, in: seoul) == self.today)
+    try #expect(TimeOfDay(Date(timeIntervalSince1970: 1_795_651_200), in: utc) == self.time(0))
+  }
 }

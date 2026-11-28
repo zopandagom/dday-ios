@@ -109,6 +109,8 @@ func makeEditor(
   today: CalendarDay = EditorSample.today,
   folders: [DDayFolder] = [],
   defaultFolderID: UUID? = nil,
+  isNotificationDenied: Bool = false,
+  onNotificationSettingsTapped: @escaping @MainActor () -> Void = {},
   recorder: OutcomeRecorder = OutcomeRecorder()
 ) -> DDayEditorModel {
   DDayEditorModel(
@@ -118,6 +120,8 @@ func makeEditor(
     today: today,
     folders: folders,
     defaultFolderID: defaultFolderID,
+    isNotificationDenied: isNotificationDenied,
+    onNotificationSettingsTapped: onNotificationSettingsTapped,
     onFinished: { recorder.outcomes.append($0) }
   )
 }

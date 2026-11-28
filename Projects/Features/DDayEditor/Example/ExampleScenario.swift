@@ -9,7 +9,7 @@ import PhotoTesting
 /// 시나리오의 편집 모드·저장소·사진 클라이언트. `fake` 는 저장된 디데이 수를 보여 주는 데 쓴다.
 /// 사진은 Fake 선택 버튼(`PhotoPickerButtonFake`)의 메뉴로 고른다 (가로·세로 샘플, 읽기 실패).
 /// `folders` 는 App 이 홈의 폴더 목록을 넘기는 것처럼 편집 화면에 넘길 목록이고 (기본: 기본 폴더 4개, Fake 에도 같은 목록),
-/// `defaultFolderID` 는 홈에서 고른 칩(추가 모드의 처음 폴더)이다.
+/// `defaultFolderID` 는 홈에서 고른 칩(추가 모드의 처음 폴더)이다. `isNotificationDenied` 는 App 이 넘기는 알림 권한 거부 여부다.
 struct ExampleSetup {
   let mode: DDayEditorMode
   let store: any DDayStoreClient
@@ -17,6 +17,7 @@ struct ExampleSetup {
   var photoClient: any PhotoClient = PhotoClientFake()
   var folders: [DDayFolder] = DDayStoreClientFake.defaultFolders
   var defaultFolderID: UUID?
+  var isNotificationDenied = false
 }
 
 /// Example 앱에서 고르는 편집 화면 상태 (설계 §8.3).
@@ -41,6 +42,7 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
   case photoRenderFailed
   case slowPhoto
   case alreadyDeletedWithPhoto
+  case notificationDenied
 
   var id: Self { self }
 
@@ -66,6 +68,7 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
     case .photoRenderFailed: "사진 만들기 실패 (한 번, 다시 시도)"
     case .slowPhoto: "느린 사진 처리 (3초: 불러오기 취소·편집 취소)"
     case .alreadyDeletedWithPhoto: "이미 지워진 디데이 (사진 있음)"
+    case .notificationDenied: "알림 권한 거부 (안내·설정 열기)"
     }
   }
 
@@ -101,6 +104,11 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
       ))
     case .editWithPhoto, .photoDecodeFailed, .photoTooLarge, .photoRenderFailed, .slowPhoto, .alreadyDeletedWithPhoto:
       return self.makePhotoSetup() ?? Self.editingWithPhoto()
+    case .notificationDenied:
+      // 알림 켠 디데이 수정: 알림 섹션 footer 에 거부 안내·[설정 열기]. 알림을 끄면 안내가 사라진다.
+      var setup = Self.editing(ExampleSamples.birthday)
+      setup.isNotificationDenied = true
+      return setup
     }
   }
 
@@ -195,6 +203,7 @@ enum ExampleScenario: String, CaseIterable, Identifiable {
       today: CalendarDay(Date(), in: .autoupdatingCurrent),
       folders: setup.folders,
       defaultFolderID: setup.defaultFolderID,
+      isNotificationDenied: setup.isNotificationDenied,
       onFinished: { _ in }
     )
   }

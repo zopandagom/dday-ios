@@ -18,6 +18,8 @@ import PhotoInterface
 ///   늦게 끝난 사진 처리 결과는 요청 id 가 같고 `phase == .editing` 일 때만 반영한다. 사진 처리 중
 ///   (`photoStep != .idle`)에는 저장·새로 저장·삭제를 시작하지 않고, [취소]·버리기·시트 닫기는 받는다
 ///   (닫히면 사진 Task 를 취소하고 늦은 결과는 버린다). 처리 실패·취소면 기존 사진·입력을 그대로 둔다.
+/// - 알림 권한 거부(`isNotificationDenied`)는 App 이 넘기고 바뀌면 `notificationAuthorizationChanged(isDenied:)` 로 다시 넘긴다.
+///   입력이 아니라 `draft`·`hasChanges` 밖이다. [설정 열기] 는 콜백으로 App 에 알리고 설정 화면은 App 이 Client 로 연다.
 @MainActor
 @Observable
 public final class DDayEditorModel: Identifiable {
@@ -53,11 +55,14 @@ public final class DDayEditorModel: Identifiable {
   public private(set) var isStoredPhotoLost = false
   /// 폴더 선택 (열 때 받은 목록에서 고른다, 저장소에서 읽지 않는다). 바꾸는 길은 `folderChanged(_:)` 뿐이다.
   public private(set) var folderSelection: EditorFolderSelection
+  /// 알림 권한이 거부됨 (App 이 넘긴다). 안내·[설정 열기] 가 보이는 조건은 `showsNotificationDeniedNotice`.
+  public private(set) var isNotificationDenied: Bool
 
   @ObservationIgnored let mode: DDayEditorMode
   @ObservationIgnored let initialDraft: DDayDraft
   @ObservationIgnored private let store: any DDayStoreClient
   @ObservationIgnored private let onFinished: @MainActor (DDayEditorOutcome) -> Void
+  @ObservationIgnored private let onNotificationSettingsTapped: @MainActor () -> Void
   @ObservationIgnored let photoClient: any PhotoClient
   /// 수정 모드의 처음 사진 (`photoChange` 가 지움을 `.remove` 로 보낼지 정한다).
   @ObservationIgnored let originalPhoto: DDayPhoto?
@@ -65,6 +70,7 @@ public final class DDayEditorModel: Identifiable {
   @ObservationIgnored private var photoTask: Task<Void, Never>?
 
   /// - Parameter today: 추가 모드의 시작 날짜 (양력 지원 범위로 맞춘다). 수정 모드는 쓰지 않는다. 폴더 인자는 `EditorFolderSelection`.
+  /// - Parameter isNotificationDenied: 열 때의 알림 권한 거부 여부. `onNotificationSettingsTapped` 는 거부 안내의 [설정 열기].
   public init(
     mode: DDayEditorMode,
     store: any DDayStoreClient,
@@ -72,50 +78,33 @@ public final class DDayEditorModel: Identifiable {
     today: CalendarDay,
     folders: [DDayFolder] = [],
     defaultFolderID: UUID? = nil,
+    isNotificationDenied: Bool = false,
+    onNotificationSettingsTapped: @escaping @MainActor () -> Void = {},
     onFinished: @escaping @MainActor (DDayEditorOutcome) -> Void
   ) {
     self.mode = mode
     self.store = store
     self.photoClient = photoClient
     self.onFinished = onFinished
+    self.isNotificationDenied = isNotificationDenied
+    self.onNotificationSettingsTapped = onNotificationSettingsTapped
     let folderSelection = EditorFolderSelection(mode: mode, folders: folders, defaultFolderID: defaultFolderID)
     self.folderSelection = folderSelection
-    var initialDraft: DDayDraft
-    switch mode {
-    case .add:
-      let reminder = ReminderSettings.default
-      self.title = ""
-      let date = DDayDate.solar(Self.clampedSolar(today))
-      self.date = date
-      self.repeatRule = .none
-      self.countingStyle = .dDay
-      self.reminderIsEnabled = reminder.isEnabled
-      self.enabledReminderDays = reminder.enabledDaysBefore
-      self.reminderTime = reminder.time
-      self.remindsEveryHundredDays = reminder.remindsEveryHundredDays
-      self.remindsAnniversaries = reminder.remindsAnniversaries
-      self.isEditingExisting = false
-      self.photoState = EditorPhotoState(photo: .none)
-      self.originalPhoto = nil
-      initialDraft = DDayDraft(title: "", schedule: DDaySchedule(date: date), reminder: reminder)
-    case let .edit(dDay):
-      let (date, isAdjusted) = Self.selectable(dDay.schedule.date)
-      self.title = dDay.title
-      self.date = date
-      self.repeatRule = dDay.schedule.repeatRule
-      self.countingStyle = dDay.schedule.countingStyle
-      self.reminderIsEnabled = dDay.reminder.isEnabled
-      self.enabledReminderDays = dDay.reminder.enabledDaysBefore
-      self.reminderTime = dDay.reminder.time
-      self.remindsEveryHundredDays = dDay.reminder.remindsEveryHundredDays
-      self.remindsAnniversaries = dDay.reminder.remindsAnniversaries
-      self.isEditingExisting = true
-      self.isDateAdjusted = isAdjusted
-      self.photoState = EditorPhotoState(photo: dDay.photo.map { .stored($0) } ?? .none)
-      self.originalPhoto = dDay.photo
-      // 제목만 정리하고 날짜는 맞추기 전 저장값: 맞췄으면 hasChanges 가 true 라 말없이 덮지 않는다.
-      initialDraft = DDayDraft(title: Self.trimmed(dDay.title), schedule: dDay.schedule, reminder: dDay.reminder)
-    }
+    let initial = Self.initialInput(mode: mode, today: today)
+    self.title = initial.title
+    self.date = initial.date
+    self.repeatRule = initial.schedule.repeatRule
+    self.countingStyle = initial.schedule.countingStyle
+    self.reminderIsEnabled = initial.reminder.isEnabled
+    self.enabledReminderDays = initial.reminder.enabledDaysBefore
+    self.reminderTime = initial.reminder.time
+    self.remindsEveryHundredDays = initial.reminder.remindsEveryHundredDays
+    self.remindsAnniversaries = initial.reminder.remindsAnniversaries
+    self.isEditingExisting = initial.isEditingExisting
+    self.isDateAdjusted = initial.isDateAdjusted
+    self.photoState = EditorPhotoState(photo: initial.photo.map { .stored($0) } ?? .none)
+    self.originalPhoto = initial.photo
+    var initialDraft = initial.draft
     initialDraft.folderID = folderSelection.savedFolderID
     self.initialDraft = initialDraft
   }
@@ -123,7 +112,8 @@ public final class DDayEditorModel: Identifiable {
 
 // 상태를 바꾸는 이벤트는 `private(set)` 세터를 쓰므로 이 파일의 extension 에 둔다.
 // 음력 선택 이벤트는 `changeLunar` 만 부르므로 `DDayEditorModel+Lunar.swift` 에, 사진 이벤트는 아래 "사진 상태 전이
-// 통로"(전이만 받고 편집 중일 때만 적용)만 부르므로 `DDayEditorModel+Photo.swift` 에 둔다. 중첩 타입은 `DDayEditorModel+Types.swift`.
+// 통로"(전이만 받고 편집 중일 때만 적용)만 부르므로 그 얇은 래퍼 `applyPhotoEvent` 와 함께 `DDayEditorModel+Photo.swift` 에 둔다.
+// 중첩 타입은 `DDayEditorModel+Types.swift`, init 의 처음 값 계산(`initialInput`)은 `DDayEditorModel+Derived.swift`.
 
 public extension DDayEditorModel {
   // MARK: - 입력 이벤트
@@ -205,6 +195,21 @@ public extension DDayEditorModel {
   func folderChanged(_ folderID: UUID?) {
     guard self.phase == .editing else { return }
     self.folderSelection.select(folderID)
+  }
+
+  // MARK: - 알림 권한
+
+  /// 거부 안내의 [설정 열기]. 거부 상태일 때만 App 에 알린다. 저장·삭제 중에도 받는다 (설정 앱으로 가도 저장은 끝까지 돈다).
+  /// 끝난 뒤에는 무시한다.
+  func notificationSettingsButtonTapped() {
+    guard self.phase != .finished, self.isNotificationDenied else { return }
+    self.onNotificationSettingsTapped()
+  }
+
+  /// 열린 동안 알림 권한이 바뀜 (App 이 부른다). 끝나기 전이면 값만 바꾼다 (입력이 아니라 `hasChanges` 에 영향 없다).
+  func notificationAuthorizationChanged(isDenied: Bool) {
+    guard self.phase != .finished else { return }
+    self.isNotificationDenied = isDenied
   }
 }
 
@@ -301,12 +306,6 @@ public extension DDayEditorModel {
 extension DDayEditorModel {
   // MARK: - 사진 상태 전이 통로
 
-  /// 사진 이벤트(`+Photo.swift`)의 통로: 이벤트 전이만 받아 편집 중일 때만 적용하고 받았는지 돌려준다.
-  @discardableResult
-  func applyPhotoEvent(_ event: EditorPhotoState.EventTransition) -> Bool {
-    self.applyPhotoTransition(event.transition)
-  }
-
   /// 시작 전이를 받았으면 `work`(시작 뒤 상태를 받는다)의 결과 전이를 적용하는 Task, 아니면 nil. 결과도 편집 중·같은 요청일 때만.
   func startPhotoWork(
     _ start: EditorPhotoState.StartTransition,
@@ -319,9 +318,9 @@ extension DDayEditorModel {
     return task
   }
 
-  /// 편집 중이면 적용한다. 받은 `.cancelLoad` 는 불러오기 Task 를 취소한다.
+  /// 편집 중이면 적용한다. 받은 `.cancelLoad` 는 불러오기 Task 를 취소한다. 사진 이벤트는 `applyPhotoEvent`(`+Photo.swift`)로 부른다.
   @discardableResult
-  private func applyPhotoTransition(_ transition: EditorPhotoState.Transition) -> Bool {
+  func applyPhotoTransition(_ transition: EditorPhotoState.Transition) -> Bool {
     guard self.phase == .editing, self.photoState.apply(transition) else { return false }
     if case .cancelLoad = transition {
       self.cancelPhotoTask()

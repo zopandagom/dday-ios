@@ -33,8 +33,9 @@ public struct ReminderSettings: Hashable, Sendable {
   }
 
   /// 알림 계획기에 넘길 값: 전체가 켜져 있으면 켜진 날짜(오름차순), 아니면 `[]`.
-  /// 알림 예약은 `ReminderSource(dDayID:schedule:daysBefore: dDay.reminder.scheduledDaysBefore, time:,
-  /// remindsEveryHundredDays:, remindsAnniversaries:)` 로 만들고, 기념일 토글은 그대로 넘긴다.
+  /// 알림 예약은 `ReminderModel`(Feature Reminder, `ReminderRequestBuilder`)이 `ReminderSource(dDayID:schedule:
+  /// daysBefore: dDay.reminder.scheduledDaysBefore, time:, remindsEveryHundredDays:, remindsAnniversaries:)` 로 만들고,
+  /// 기념일 토글은 그대로 넘긴다.
   /// 전체를 끄면 이 값이 [] 라 기념일 알림도 없다.
   public var scheduledDaysBefore: [Int] {
     guard self.isEnabled else { return [] }

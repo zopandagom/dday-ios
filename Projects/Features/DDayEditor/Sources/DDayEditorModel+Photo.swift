@@ -55,3 +55,11 @@ public extension DDayEditorModel {
     self.applyPhotoEvent(.remove)
   }
 }
+
+extension DDayEditorModel {
+  /// 사진 이벤트의 통로: 이벤트 전이만 받아 편집 중일 때만 적용하고 받았는지 돌려준다 (적용은 `applyPhotoTransition`).
+  @discardableResult
+  func applyPhotoEvent(_ event: EditorPhotoState.EventTransition) -> Bool {
+    self.applyPhotoTransition(event.transition)
+  }
+}

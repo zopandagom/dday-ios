@@ -4,8 +4,10 @@ import DDayStoreInterface
 import FolderManagerFeature
 import Foundation
 import HomeFeature
+import LocalNotificationInterface
 import Observation
 import PhotoInterface
+import ReminderFeature
 
 /// 화면 흐름(홈 → 상세 push → 편집 시트) 상태. App 이 `@State` 로 소유한다.
 ///
@@ -33,6 +35,14 @@ import PhotoInterface
 ///   관리 모델은 홈의 폴더 목록·디데이 수로 시작하고 저장소에서 폴더를 읽지 않는다. 폼 결과는 관리 모델(`formFinished`)로,
 ///   관리 결과는 홈·상세에 `foldersChanged(_:)`·`dDayDeleted(id:)` 로 넘긴다. 시트·폼이 닫힌 뒤 끝난 작업의 결과도
 ///   세션으로 거르지 않고 그대로 넘긴다 (결과는 저장소에 이미 반영됐다). 상세가 지금 보는 디데이가 함께 지워지면 상세를 닫는다.
+/// - 알림: 다시 예약하는 `reminderModel`(Feature `Reminder`, 화면 없음)을 여기서 만들어 소유한다. 앱 시작·복귀는 App 루트가,
+///   디데이 변경은 여기서 알린다: 편집 결과(saved·savedAsNew·deleted, 끌어내려 닫은 뒤 늦게 끝난 옛 편집 포함), 폴더와 함께 지운
+///   디데이, 홈 스와이프 삭제 성공(`.notFound` 포함). 홈·상세 반영과 시트 내림 뒤에 부르고 결과는 기다리지 않는다.
+///   권한은 알림 날짜가 하나 이상 켜진 디데이(`reminder.scheduledDaysBefore` 가 비어 있지 않음)를 저장한 결과에서만 요청하고
+///   (시트를 내린 같은 차례, 상태가 미결정일 때만 `reminderModel` 이 프롬프트를 띄운다), 앱 시작·복귀·삭제에서는 요청하지 않는다.
+///   편집 화면에는 열 때 권한 거부 여부(`reminderModel.authorization == .denied`)를 넘기고, 열린 동안 권한이 바뀌면
+///   (`onAuthorizationChanged`) 떠 있는 편집 모델에 다시 넘긴다. 편집 화면의 [설정 열기] 는
+///   `reminderModel.notificationSettingsRequested()` 로 잇는다 (설정 화면은 Client 가 연다).
 @MainActor
 @Observable
 final class AppFlow {
@@ -77,6 +87,8 @@ final class AppFlow {
   }
 
   let homeModel: HomeModel
+  /// 알림 권한·다시 예약. App 루트가 앱 시작·복귀를 알린다.
+  let reminderModel: ReminderModel
   private(set) var detail: DetailSession?
   private(set) var editor: EditorSession?
   private(set) var folderManager: FolderManagerSession?
@@ -94,9 +106,10 @@ final class AppFlow {
   init(
     store: any DDayStoreClient,
     photoClient: any PhotoClient,
+    notifications: any LocalNotificationClient,
     today: @escaping @MainActor () -> CalendarDay
   ) {
-    // 홈 콜백이 self 를 강하게 잡지 않도록 약한 참조 상자를 넘기고 init 끝에서 채운다.
+    // 홈·알림 콜백이 self 를 강하게 잡지 않도록 약한 참조 상자를 넘기고 init 끝에서 채운다.
     let flowReference = WeakAppFlowReference()
     self.store = store
     self.photoClient = photoClient
@@ -106,7 +119,15 @@ final class AppFlow {
       today: today,
       onAddTapped: { folderID in flowReference.flow?.openEditor(.add, defaultFolderID: folderID) },
       onDDaySelected: { flowReference.flow?.openDetail($0) },
-      onFolderManagerTapped: { flowReference.flow?.openFolderManager() }
+      onFolderManagerTapped: { flowReference.flow?.openFolderManager() },
+      onDDayDeleted: { _ in flowReference.flow?.rescheduleReminders(requestAuthorizationIfNeeded: false) }
+    )
+    self.reminderModel = ReminderModel(
+      store: store,
+      notifications: notifications,
+      now: { Date() },
+      timeZone: { .autoupdatingCurrent },
+      onAuthorizationChanged: { flowReference.flow?.notificationAuthorizationChanged($0) }
     )
     flowReference.flow = self
   }
@@ -169,6 +190,11 @@ final class AppFlow {
       today: self.today(),
       folders: self.homeModel.folders,
       defaultFolderID: defaultFolderID,
+      isNotificationDenied: self.reminderModel.authorization == .denied,
+      onNotificationSettingsTapped: { [weak self] in
+        guard let reminderModel = self?.reminderModel else { return }
+        Task { await reminderModel.notificationSettingsRequested() }
+      },
       onFinished: { [weak self] outcome in
         self?.editorFinished(outcome, sessionID: sessionID)
       }
@@ -178,6 +204,7 @@ final class AppFlow {
 
   /// 떠 있는 세션의 결과면 시트를 내리고, 끌어내려 닫은 뒤 늦게 끝난 옛 세션이면 결과만 넘긴다.
   /// 결과는 홈과 (떠 있으면) 상세 둘 다에 넘기고, 상세가 지금 보는 디데이가 지워졌으면 상세를 닫는다.
+  /// 그 뒤 알림을 다시 예약한다 (알림 날짜가 켜진 디데이를 저장했으면 권한 요청과 함께, 취소면 하지 않는다).
   private func editorFinished(_ outcome: DDayEditorOutcome, sessionID: UUID) {
     if self.presentation.finished(sessionID: sessionID) {
       self.editor = nil
@@ -200,6 +227,28 @@ final class AppFlow {
     if self.detail?.model.isRemoved == true {
       self.detail = nil
     }
+    // 시트를 내린 같은 차례에 부르므로 권한 프롬프트는 시트 위가 아니라 내려가는 중·뒤의 화면 위에 뜬다.
+    switch outcome {
+    case let .saved(dDay), let .savedAsNew(dDay, replacing: _):
+      self.rescheduleReminders(requestAuthorizationIfNeeded: !dDay.reminder.scheduledDaysBefore.isEmpty)
+    case .deleted:
+      self.rescheduleReminders(requestAuthorizationIfNeeded: false)
+    case .cancelled:
+      break
+    }
+  }
+
+  /// 디데이가 바뀜: 알림을 다시 예약한다. 결과는 기다리지 않는다 (겹친 요청은 `reminderModel` 이 한 번 더로 모은다).
+  private func rescheduleReminders(requestAuthorizationIfNeeded: Bool) {
+    let reminderModel = self.reminderModel
+    Task { await reminderModel.dDaysChanged(requestAuthorizationIfNeeded: requestAuthorizationIfNeeded) }
+  }
+
+  /// 읽은 알림 권한이 바뀜 (`reminderModel` 의 `onAuthorizationChanged`): 떠 있는 편집 모델에 거부 여부를 넘긴다.
+  /// 편집이 떠 있지 않으면 아무것도 하지 않는다 (다음에 열 때 `reminderModel.authorization` 을 읽는다).
+  /// 끌어내려 닫는 중인 모델은 `phase == .finished` 라 무시한다.
+  private func notificationAuthorizationChanged(_ status: NotificationAuthorization) {
+    self.editor?.model.notificationAuthorizationChanged(isDenied: status == .denied)
   }
 }
 
@@ -260,13 +309,15 @@ extension AppFlow {
     manager.formFinished(outcome)
   }
 
-  /// 폴더와 함께 지운 디데이: 홈·상세에 넘기고, 상세가 지금 보는 디데이면 상세를 닫는다.
+  /// 폴더와 함께 지운 디데이: 홈·상세에 넘기고, 상세가 지금 보는 디데이면 상세를 닫은 뒤 알림을 다시 예약한다
+  /// (함께 지운 수만큼 불려도 `reminderModel` 이 겹친 요청을 모아 최대 두 회차).
   private func folderDDayDeleted(id: UUID) {
     self.homeModel.dDayDeleted(id: id)
     self.detail?.model.dDayDeleted(id: id)
     if self.detail?.model.isRemoved == true {
       self.detail = nil
     }
+    self.rescheduleReminders(requestAuthorizationIfNeeded: false)
   }
 }
 

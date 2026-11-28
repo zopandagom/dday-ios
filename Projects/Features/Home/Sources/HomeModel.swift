@@ -23,6 +23,8 @@ public enum HomeFilter: Hashable, Sendable {
 /// - "오늘"은 주입한 `today` 로 구하고, 앱 복귀·날짜 변경·시간대 변경 때 다시 구해 바뀌었을 때만 다시 정렬한다.
 ///   저장소는 다시 읽지 않는다.
 /// - 삭제는 항목을 바로 숨긴 뒤 저장소에서 지운다. 실패하면 원래 자리로 돌려놓고 알림창을 띄운다.
+///   성공(`.notFound` 포함)하면 `onDDayDeleted` 로 App 에 알린다 (App 이 알림을 다시 예약한다). 편집 결과·폴더 관리로 온
+///   `dDayDeleted(id:)` 는 알리지 않는다 (App 이 그 경로에서 이미 다시 예약한다).
 /// - 필터·폴더 해석은 `rebuild()` 에서만 한다. 편집 결과로 폴더가 바뀐 디데이는 같은 차례에 필터 결과에서 빠지거나 들어온다.
 ///   [+] 는 지금 필터가 폴더면 그 폴더 id 를 넘긴다 (추가 모드 기본 폴더).
 /// - 폴더 관리 결과: [폴더 관리](칩·툴바)는 목록이 있을 때만 App 에 알리고(`onFolderManagerTapped`), App 이 관리 화면에
@@ -66,19 +68,23 @@ public final class HomeModel {
   @ObservationIgnored private let onDDaySelected: @MainActor (DDay) -> Void
   /// [폴더 관리]. App 이 관리 화면을 연다.
   @ObservationIgnored private let onFolderManagerTapped: @MainActor () -> Void
+  /// 스와이프 삭제 성공(`.notFound` 포함). App 이 알림을 다시 예약한다.
+  @ObservationIgnored private let onDDayDeleted: @MainActor (UUID) -> Void
 
   public init(
     store: any DDayStoreClient,
     today: @escaping @MainActor () -> CalendarDay,
     onAddTapped: @escaping @MainActor (_ folderID: UUID?) -> Void,
     onDDaySelected: @escaping @MainActor (DDay) -> Void,
-    onFolderManagerTapped: @escaping @MainActor () -> Void = {}
+    onFolderManagerTapped: @escaping @MainActor () -> Void = {},
+    onDDayDeleted: @escaping @MainActor (UUID) -> Void = { _ in }
   ) {
     self.store = store
     self.today = today
     self.onAddTapped = onAddTapped
     self.onDDaySelected = onDDaySelected
     self.onFolderManagerTapped = onFolderManagerTapped
+    self.onDDayDeleted = onDDayDeleted
   }
 
   /// 폴더 id → 안의 디데이 수. 삭제 중이 아닌 디데이 중 지금 `folders` 에 있는 폴더를 가리키는 것만 센다
@@ -159,6 +165,7 @@ public final class HomeModel {
   }
 
   /// 스와이프 삭제. 같은 차례에 항목을 숨기고 저장소 삭제 Task 를 시작해 돌려준다.
+  /// 성공(`.notFound` 포함)하면 `onDDayDeleted` 를 그 id 로 한 번 부르고, 실패하면 부르지 않는다.
   /// 목록이 없거나, 없는 id 거나, 이미 삭제 중이면 무시하고 nil.
   @discardableResult
   public func deleteSwiped(id: UUID) -> Task<Void, Never>? {
@@ -278,9 +285,11 @@ public final class HomeModel {
     do {
       try await self.store.delete(id: id)
       self.removeDeleted(id: id)
+      self.onDDayDeleted(id)
     } catch DDayStoreError.notFound {
       // 이미 없는 것은 원하는 결과다.
       self.removeDeleted(id: id)
+      self.onDDayDeleted(id)
     } catch {
       self.deletingIDs.remove(id)
       self.rebuild()

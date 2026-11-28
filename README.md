@@ -15,7 +15,7 @@
 ## 기술 스택
 - SwiftUI (규칙 기반 단방향 MV), Swift 6 strict concurrency, iOS 18.0+ (iPhone)
 - Tuist 모듈러 아키텍처 (Feature / Client Interface·Impl·Testing / Shared)
-- SwiftData (디데이·폴더·이미지 저장), UserNotifications (로컬 알림), PhotosUI (사진 선택), BackgroundTasks (알림 재예약 보조), String Catalog (ko/en)
+- SwiftData (디데이·폴더·이미지 저장), UserNotifications (로컬 알림), PhotosUI (사진 선택), String Catalog (ko/en). BackgroundTasks(알림 재예약 보조)는 후속
 
 ## 시작하기
 ```bash

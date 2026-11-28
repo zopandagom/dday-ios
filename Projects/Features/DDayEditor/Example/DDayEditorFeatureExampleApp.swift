@@ -10,6 +10,7 @@ import SwiftUI
 /// 끝나면 마지막 결과와 Fake 저장소의 디데이 수를 목록 위에 보인다. 끌어내려 닫은 뒤 늦게 끝난 옛 편집의 결과도
 /// 결과 줄에 보이고, 그 사이 새로 연 시트는 닫지 않는다. 사진 선택 버튼은 Fake(`PhotoPickerButtonFake`)를 주입한다.
 /// 폴더 목록·추가 기본 폴더는 시나리오가 정하고(App 이 홈의 목록·칩을 넘기는 것과 같다), 결과 줄에 저장된 폴더를 보인다.
+/// 알림 권한 거부 여부도 시나리오가 정하고, [설정 열기] 는 설정 앱을 열지 않고 누른 횟수만 목록 위에 보인다.
 @main
 struct DDayEditorFeatureExampleApp: App {
   @State private var state = ExampleState()
@@ -22,6 +23,7 @@ struct DDayEditorFeatureExampleApp: App {
             Text(self.state.lastOutcome)
             Text("저장된 디데이 수: \(self.state.storedCount.map(String.init) ?? "-")")
             Text("저장된 사진 수: \(self.state.storedPhotoCount.map(String.init) ?? "-")")
+            Text("설정 열기 누른 수: \(String(self.state.settingsTapCount))")
           }
           Section("시나리오") {
             ForEach(ExampleScenario.allCases) { scenario in
@@ -61,6 +63,7 @@ final class ExampleState {
   private(set) var lastOutcome = "없음"
   private(set) var storedCount: Int?
   private(set) var storedPhotoCount: Int?
+  private(set) var settingsTapCount = 0
   @ObservationIgnored private var presentation = DDayEditorPresentation()
 
   func open(_ scenario: ExampleScenario) {
@@ -74,6 +77,10 @@ final class ExampleState {
       today: CalendarDay(Date(), in: .autoupdatingCurrent),
       folders: setup.folders,
       defaultFolderID: setup.defaultFolderID,
+      isNotificationDenied: setup.isNotificationDenied,
+      onNotificationSettingsTapped: { [weak self] in
+        self?.settingsTapCount += 1
+      },
       onFinished: { [weak self] outcome in
         self?.finished(outcome, sessionID: id, fake: fake)
       }

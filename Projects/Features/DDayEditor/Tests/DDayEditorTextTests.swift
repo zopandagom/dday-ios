@@ -65,6 +65,16 @@ struct DDayEditorTextTests {
     #expect(self.text(DDayEditorText.calendarKind(.lunar), Self.english) == "Lunar")
   }
 
+  @Test("알림 권한 거부 안내·설정 열기 문구 (ko·en)")
+  func notificationDeniedLabels() {
+    #expect(self.text(DDayEditorText.notificationDenied, Self.korean)
+      == "알림이 꺼져 있어요. 설정에서 알림을 허용하면 이 디데이 알림을 받을 수 있어요.")
+    #expect(self.text(DDayEditorText.notificationDenied, Self.english)
+      == "Notifications are turned off. Allow them in Settings to get reminders for this D-day.")
+    #expect(self.text(DDayEditorText.openNotificationSettings, Self.korean) == "설정 열기")
+    #expect(self.text(DDayEditorText.openNotificationSettings, Self.english) == "Open Settings")
+  }
+
   @Test("기념일 알림 섹션 문구 (ko·en)")
   func milestoneLabels() {
     #expect(self.text(DDayEditorText.milestoneSection, Self.korean) == "기념일 알림")
