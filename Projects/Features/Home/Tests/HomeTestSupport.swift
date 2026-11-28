@@ -101,6 +101,8 @@ final class CallbackRecorder {
   var selected: [DDay] = []
   /// [폴더 관리] 콜백 횟수.
   var folderManagerTapCount = 0
+  /// 스와이프 삭제 성공 콜백이 넘긴 id (부른 순서).
+  var deletedIDs: [UUID] = []
 }
 
 extension HomeModel.Content {
