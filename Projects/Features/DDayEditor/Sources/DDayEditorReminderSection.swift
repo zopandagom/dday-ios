@@ -1,7 +1,7 @@
 import Core
 import SwiftUI
 
-/// 편집 화면의 알림 섹션: 켜기, 고정 알림 날짜 4개, 시각.
+/// 편집 화면의 알림 섹션: 켜기, 고정 알림 날짜 4개, 시각. `showsNotificationDeniedNotice` 면 footer 에 안내와 [설정 열기].
 struct DDayEditorReminderSection: View {
   let model: DDayEditorModel
   @Environment(\.timeZone) private var timeZone
@@ -37,6 +37,17 @@ struct DDayEditorReminderSection: View {
       }
     } header: {
       Text(DDayEditorText.reminderSection)
+    } footer: {
+      if self.model.showsNotificationDeniedNotice {
+        VStack(alignment: .leading, spacing: 8) {
+          Text(DDayEditorText.notificationDenied)
+          Button {
+            self.model.notificationSettingsButtonTapped()
+          } label: {
+            Text(DDayEditorText.openNotificationSettings)
+          }
+        }
+      }
     }
   }
 }

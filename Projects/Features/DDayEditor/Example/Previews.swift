@@ -37,6 +37,11 @@ import SwiftUI
   DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)
 }
 
+#Preview("알림 거부 안내") {
+  @Previewable @State var model = ExampleScenario.notificationDenied.makePreviewModel()
+  DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)
+}
+
 #Preview("지원 안 되는 날짜") {
   @Previewable @State var model = ExampleScenario.unsupportedDate.makePreviewModel()
   DDayEditorView(model: model, photoPickerButton: PhotoPickerButtonFake.init)

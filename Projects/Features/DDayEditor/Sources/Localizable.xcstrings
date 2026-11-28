@@ -783,6 +783,23 @@
         }
       }
     },
+    "editor.reminder.denied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are turned off. Allow them in Settings to get reminders for this D-day."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "알림이 꺼져 있어요. 설정에서 알림을 허용하면 이 디데이 알림을 받을 수 있어요."
+          }
+        }
+      }
+    },
     "editor.reminder.enabled" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -813,6 +830,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "당일"
+          }
+        }
+      }
+    },
+    "editor.reminder.openSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "설정 열기"
           }
         }
       }

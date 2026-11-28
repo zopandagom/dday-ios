@@ -42,6 +42,12 @@ public extension DDayEditorModel {
   var isBusy: Bool { self.phase == .saving || self.phase == .deleting }
   /// 기념일 알림 토글은 D+·1일째 방식일 때만 보인다 (값은 늘 저장).
   var showsMilestoneReminders: Bool { self.countingStyle != .dDay }
+  /// 알림 섹션의 권한 거부 안내·[설정 열기]: 거부 상태이고 알림이 켜져 있으며 알림 날짜가 하나 이상 켜졌을 때만
+  /// (예약·권한 요청과 같은 기준, `ReminderSettings.scheduledDaysBefore`).
+  var showsNotificationDeniedNotice: Bool {
+    self.isNotificationDenied && self.reminderIsEnabled && !self.enabledReminderDays.isEmpty
+  }
+
   /// 알림 날짜 줄의 표시 순서: 30일 전 → 7일 전 → 2일 전 → 당일.
   static let reminderDayChoices: [Int] = ReminderSettings.daysBeforeChoices.reversed()
 
@@ -120,6 +126,54 @@ public extension DDayEditorModel {
       let lunar = KoreanLunarCalendar.lunarDate(from: day)
         ?? LunarPickerOptions.normalized(year: day.year, month: 1, isLeapMonth: false, day: 1)
       return LunarPickerOptions.choices(for: lunar)
+    }
+  }
+
+  // MARK: - 처음 값
+
+  /// init 이 채우는 처음 입력. 추가 모드는 기본값(오늘 날짜를 지원 범위로 맞춤), 수정 모드는 저장값(날짜는 고를 수 있게 맞춤).
+  internal struct InitialInput {
+    let title: String
+    let date: DDayDate
+    /// 반복 규칙·세는 방식의 출처 (`date` 는 맞추기 전 값일 수 있어 따로 둔다).
+    let schedule: DDaySchedule
+    let reminder: ReminderSettings
+    let isEditingExisting: Bool
+    let isDateAdjusted: Bool
+    let photo: DDayPhoto?
+    /// `hasChanges` 의 기준 (폴더는 init 이 채운다). 수정 모드는 제목만 정리하고 날짜는 맞추기 전 저장값이라,
+    /// 맞췄으면 hasChanges 가 true 여서 말없이 덮지 않는다.
+    let draft: DDayDraft
+  }
+
+  internal static func initialInput(mode: DDayEditorMode, today: CalendarDay) -> InitialInput {
+    switch mode {
+    case .add:
+      let reminder = ReminderSettings.default
+      let date = DDayDate.solar(self.clampedSolar(today))
+      let schedule = DDaySchedule(date: date)
+      return InitialInput(
+        title: "",
+        date: date,
+        schedule: schedule,
+        reminder: reminder,
+        isEditingExisting: false,
+        isDateAdjusted: false,
+        photo: nil,
+        draft: DDayDraft(title: "", schedule: schedule, reminder: reminder)
+      )
+    case let .edit(dDay):
+      let (date, isAdjusted) = self.selectable(dDay.schedule.date)
+      return InitialInput(
+        title: dDay.title,
+        date: date,
+        schedule: dDay.schedule,
+        reminder: dDay.reminder,
+        isEditingExisting: true,
+        isDateAdjusted: isAdjusted,
+        photo: dDay.photo,
+        draft: DDayDraft(title: self.trimmed(dDay.title), schedule: dDay.schedule, reminder: dDay.reminder)
+      )
     }
   }
 
