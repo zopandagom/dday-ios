@@ -4,6 +4,7 @@ import DDayStoreImpl
 import FolderManagerFeature
 import Foundation
 import HomeFeature
+import LocalNotificationImpl
 import PhotoImpl
 import SwiftUI
 
@@ -11,6 +12,7 @@ import SwiftUI
 @main
 struct DDayApp: App {
   @State private var flow: AppFlow
+  @Environment(\.scenePhase) private var scenePhase
 
   init() {
     // 저장소는 앱에 하나. 여기서는 열지 않고 첫 호출에서 연다 (열기 실패는 목록의 불러오기 오류로 보인다).
@@ -19,9 +21,12 @@ struct DDayApp: App {
     // 사진 처리는 상태가 없어 앱에 하나만 둔다. 선택 버튼(PhotosPicker)은 편집 화면 슬롯에 주입한다
     // (App 은 PhotosUI 를 import 하지 않는다).
     let photoClient = PhotoClientImpl()
+    // 로컬 알림은 상태가 없어 앱에 하나만 둔다. 설정 화면 열기도 이 Client 가 한다 (App 은 UIKit 을 import 하지 않는다).
+    let notifications = LocalNotificationClientImpl()
     self._flow = State(initialValue: AppFlow(
       store: store,
       photoClient: photoClient,
+      notifications: notifications,
       today: { CalendarDay(Date(), in: .autoupdatingCurrent) }
     ))
   }
@@ -74,6 +79,15 @@ struct DDayApp: App {
         }
       )) { session in
         DDayEditorView(model: session.model, photoPickerButton: PhotoPickerButton.init)
+      }
+      // 알림 다시 예약: 앱 시작·앱 복귀 (권한 요청 없음). 홈의 복귀 처리(HomeView)와 별개다.
+      .task {
+        await self.flow.reminderModel.appLaunched()
+      }
+      .onChange(of: self.scenePhase) { _, phase in
+        if phase == .active {
+          Task { await self.flow.reminderModel.sceneBecameActive() }
+        }
       }
     }
   }
