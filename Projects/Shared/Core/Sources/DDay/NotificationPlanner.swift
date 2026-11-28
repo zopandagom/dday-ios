@@ -12,6 +12,14 @@ public struct TimeOfDay: Hashable, Comparable, Sendable, CustomStringConvertible
     self.minute = minute
   }
 
+  /// `date` 가 `timeZone`(그레고리력)에서 몇 시 몇 분인지로 만든다 (초는 버린다). 앱이 "지금"을 구할 때 쓴다.
+  public init(_ date: Date, in timeZone: TimeZone) {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = timeZone
+    let components = calendar.dateComponents([.hour, .minute], from: date)
+    self.init(uncheckedHour: components.hour ?? 0, minute: components.minute ?? 0)
+  }
+
   /// 기본 알림 시각, 오전 9시.
   public static let defaultReminderTime = TimeOfDay(uncheckedHour: 9, minute: 0)
 
